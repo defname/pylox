@@ -1,3 +1,7 @@
+"""
+Module containing the Lexer class and everything it needs (except of
+the ErrorReporter).
+"""
 from __future__ import annotations
 from enum import Enum
 import dataclasses
@@ -78,7 +82,7 @@ class Token:
     literal: str|float|None = None
 
     def __str__(self):
-        return str(self.type) + " " + self.lexeme + " " + str(self.literal)
+        return str(self.type) + " " + str(self.lexeme) + " " + str(self.literal)
 
 
 class Lexer:
@@ -94,7 +98,7 @@ class Lexer:
         self.position = SourcePosition(1, 0, 0)
 
 
-    def scan(self) -> bool:
+    def scan(self) -> list[Token]:
         """
         Scan the source and split it up into usable Tokens.
         """
@@ -104,7 +108,7 @@ class Lexer:
 
         self.__add_token(TokenType.EOF)
 
-        return 
+        return self.tokens
     
     def __scan_token(self):
         c = self.__advance()
@@ -212,24 +216,23 @@ class Lexer:
     
     @staticmethod
     def is_numeric(c: str) -> bool:
+        """Check if c is a numeric."""
         return '0' <= c <= '9'
 
     @staticmethod
     def is_alpha(c: str) -> bool:
+        """Check if c is a character or an underscore."""
         return 'a' <= c <= 'z' or 'A' <= c <= 'Z' or c == '_'
     
     @staticmethod
     def is_alphanumeric(c: str) -> bool:
+        """Check if c is alphanumeric"""
         return Lexer.is_alpha(c) or Lexer.is_numeric(c)
 
     def __add_token(self, typ: TokenType, literal: str|float|None = None):
-        """
-        Add token to the token list, change position.start to current
-        """
+        """Add token to the token list."""
         lexeme = self.source[self.position.start:self.position.current]
         self.tokens.append(Token(typ, lexeme, copy.copy(self.position), literal))
-
-        self.position.start = self.position.current
 
     def __is_at_end(self) -> bool:
         return self.position.current >= len(self.source)

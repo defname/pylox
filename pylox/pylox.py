@@ -1,9 +1,12 @@
-import sys
+"""
+Main module containing the PyLox class which puts together the whole
+interpreter.
+"""
 from .lexer import SourcePosition, Lexer
 
 
 class ErrorReporter:
-    """Provide reporting functions for different parts of the compiler."""
+    """Provide error reporting functions for different parts of the compiler."""
     def __init__(self, source: str):
         self.source: str = source
     
@@ -23,6 +26,7 @@ class ErrorReporter:
         print(f'{typ} error at {position}: {message}')
         print(line)
         print(position_indicator)
+        
     
     def report_lex(self, position: SourcePosition, message: str):
         """Reporting function to be used by the Lexer"""
@@ -30,12 +34,18 @@ class ErrorReporter:
 
 
 class PyLox:
+    """
+    PyLox interpreter.
+
+    Combine the Lexer, etc. to a working interpreter.
+    """
     def __init__(self):
         self.had_error = False
     
     def run_file(self, filename: str):
+        """Read the specified file and run it."""
         try:
-            file = open(filename)
+            file = open(filename, )
         except FileNotFoundError:
             return 66
         else:
@@ -47,6 +57,7 @@ class PyLox:
                 return 0
 
     def run_prompt(self):
+        """Read from stdin and run the input until EOF."""
         while True:
             try:
                 line = input("> ")
@@ -57,8 +68,14 @@ class PyLox:
         return 0
 
     def run(self, source: str):
+        """Run the given sourcecode."""
         error_reporter = ErrorReporter(source)
         lexer = Lexer(source, error_reporter)
         lexer.scan()
         for token in lexer.tokens:
             print(token)
+        
+        if lexer.had_error:
+            self.had_error = True
+            return 65
+        return 0

@@ -10,3 +10,7 @@ if __name__ == "__main__":
         pylox.run_file(sys.argv[1])
     else:
         pylox.run_prompt()
+    
+    if pylox.had_error:
+        sys.exit(65)
+    sys.exit(0)
