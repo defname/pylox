@@ -13,7 +13,8 @@ class Expr(ABC):
     @abstractmethod
     def accept(self, visitor: Visitor):
         pass
-    
+
+
 @dataclass
 class Binary(Expr):
     left: Expr
@@ -23,6 +24,7 @@ class Binary(Expr):
     def accept(self, visitor: Visitor):
         return visitor.visit_binary_expr(self)
 
+
 @dataclass
 class Unary(Expr):
     operator: Token
@@ -31,6 +33,7 @@ class Unary(Expr):
     def accept(self, visitor: Visitor):
         return visitor.visit_unary_expr(self)
 
+
 @dataclass
 class Grouping(Expr):
     expression: Expr
@@ -38,9 +41,10 @@ class Grouping(Expr):
     def accept(self, visitor: Visitor):
         return visitor.visit_grouping_expr(self)
 
+
 @dataclass
 class Literal(Expr):
-    value: str|float
+    value: str|float|bool|None
 
     def accept(self, visitor: Visitor):
         return visitor.visit_literal_expr(self)

@@ -53,6 +53,7 @@ KEYWORD_TYPE: Final[dict[str, TokenType]] = {
     "while": TokenType.WHILE
 }
 
+
 @dataclasses.dataclass
 class SourcePosition:
     """
@@ -79,7 +80,7 @@ class Token:
     type: TokenType
     lexeme: str
     position: SourcePosition
-    literal: str|float|None = None
+    literal: str|float|bool|None = None
 
     def __str__(self):
         return str(self.type) + " " + str(self.lexeme) + " " + str(self.literal)

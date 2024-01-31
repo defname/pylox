@@ -28,7 +28,7 @@ class """+base_class_name+"""(ABC):
     @abstractmethod
     def accept(self, visitor: Visitor):
         pass
-    
+
 """
     for object_definition in object_definitions:
         source += generate_type(base_class_name, object_definition) + "\n"
@@ -45,7 +45,7 @@ def generate_type(base_class_name: str, object_definition: str) -> str:
     class_name: str = object_definition.split(":")[0].strip()
     members: str = object_definition.split(":")[1].strip()
 
-    source = "@dataclass\n"
+    source = "\n@dataclass\n"
     source += f"class {class_name}({base_class_name}):\n"
     source += generate_members(members)
     source += "\n    def accept(self, visitor: Visitor):\n"
@@ -69,6 +69,6 @@ if __name__ == "__main__":
         "Binary: Expr left, Token operator, Expr right",
         "Unary: Token operator, Expr right",
         "Grouping: Expr expression",
-        "Literal: str|float value"
+        "Literal: str|float|bool|None value"
     ]
     print(generate_ast(BASE_CLASS, OBJECT_DEFINITIONS))
