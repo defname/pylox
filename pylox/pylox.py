@@ -4,6 +4,7 @@ interpreter.
 """
 from __future__ import annotations
 from typing import Union
+from cmd import Cmd
 from .lexer import SourcePosition, Lexer
 from .parser import Parser
 from .ast_printer import AstPrinter
@@ -67,6 +68,26 @@ class ErrorReporter:
         self.__report(position, "Runtime", message)
 
 
+class Prompt(Cmd):
+    def __init__(self):
+        super().__init__()
+        self.use_rawinput = True
+        self.text = ""
+        self.prompt = "> "
+
+    def default(self, line):
+        self.text = line
+        if line == "EOF":
+            raise EOFError
+
+    def postcmd(self, stop, line):
+        return True
+
+    def get(self):
+        self.cmdloop()
+        return self.text
+
+
 class PyLox:
     """
     PyLox interpreter.
@@ -94,7 +115,7 @@ class PyLox:
         """Read from stdin and run the input until EOF."""
         while True:
             try:
-                line = input("> ")
+                line = Prompt().get()
                 self.run(line)
                 self.error_reporter.reset_errors()
             except EOFError:
