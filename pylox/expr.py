@@ -41,6 +41,10 @@ class Expr(ABC):
         def visit_variable_expr(self, expr: Variable):
             pass
 
+        @abstractmethod
+        def visit_assign_expr(self, expr: Assign):
+            pass
+
 
 @dataclass
 class Binary(Expr):
@@ -93,4 +97,13 @@ class Variable(Expr):
 
     def accept(self, visitor: Expr.Visitor):
         return visitor.visit_variable_expr(self)
+
+
+@dataclass
+class Assign(Expr):
+    name: Token
+    value: Expr
+
+    def accept(self, visitor: Expr.Visitor):
+        return visitor.visit_assign_expr(self)
 

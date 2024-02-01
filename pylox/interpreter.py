@@ -1,6 +1,7 @@
 """Implements Interpreter"""
 from __future__ import annotations
-from .expr import Expr, Literal, Grouping, Binary, Unary, Ternery, Variable
+from .expr import Expr, Literal, Grouping, Binary, Unary, Ternery, Variable, \
+        Assign
 from .stmt import Stmt, Expression, Print, Var
 from .lexer import TokenType, Token
 from typing import TYPE_CHECKING, Any
@@ -38,6 +39,18 @@ class Environment:
         if name.lexeme in self.values:
             return self.values[name.lexeme]
         raise RuntimeError(name, "Undefined variable '" + name.lexeme + "'")
+
+    def assign(self, name: Token, value: Any):
+        """
+        Assign a value to a variable.
+        Raise RuntimeError if the variable doesn't exist.
+        """
+        if name.lexeme in self.values:
+            self.values[name.lexeme] = value
+            return
+
+        raise RuntimeError(name,
+                           "Undefined variable '" + name.lexeme + "'.")
 
 
 class Interpreter(Expr.Visitor, Stmt.Visitor):
@@ -174,6 +187,11 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
 
     def visit_variable_expr(self, expr: Variable):
         return self.environment.get(expr.name)
+
+    def visit_assign_expr(self, expr: Assign):
+        value = self.evaluate(expr.value)
+        self.environment.assign(expr.name, value)
+        return value
 
     ###########################################################################
     # Stmt.Visitor

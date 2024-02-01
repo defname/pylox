@@ -96,7 +96,8 @@ if __name__ == "__main__":
         "Grouping: Expr expression",
         "Literal: LiteralType value",
         "Ternery: Expr condition; Expr then_expr; Expr else_expr",
-        "Variable: Token name"
+        "Variable: Token name",
+        "Assign: Token name; Expr value"
     ]
     generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR)
 

@@ -16,7 +16,9 @@ The grammar is defined by:
     exprStmt    -> expression ";"
     printStmt   -> "print" expression ";"
 
-    expression  -> ternery
+    expression  -> assignment
+    assignment  -> IDENTIFIER "=" assignment
+                   | ternery
     ternery     -> equality ("?" equality ":" ternery)?
     equality    -> comparision ( ("!=" | "==") comparision )*
     comparision -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
@@ -31,7 +33,8 @@ The grammar is defined by:
 from __future__ import annotations
 from typing import Callable, TYPE_CHECKING, Union
 from .lexer import Token, TokenType
-from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery, Variable
+from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery, Variable, \
+        Assign
 from .stmt import Stmt, Expression, Print, Var
 
 if TYPE_CHECKING:
@@ -155,7 +158,20 @@ class Parser:
         return expr
 
     def __expression(self) -> Expr:
-        return self.__ternery()
+        return self.__assignment()
+
+    def __assignment(self) -> Expr:
+        expr: Expr = self.__ternery()
+
+        if self.__match([TokenType.EQUAL]):
+            equals: Token = self.__previous()
+            value: Expr = self.__assignment()
+            if isinstance(expr, Variable):
+                var: Variable = expr
+                return Assign(var.name, value)
+
+            self.__error(equals, "Invalid assignment target.")
+        return expr
 
     def __ternery(self) -> Expr:
         expr: Expr = self.__equality()
