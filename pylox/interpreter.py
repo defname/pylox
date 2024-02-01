@@ -1,7 +1,7 @@
 """Implements Interpreter"""
 from __future__ import annotations
-from .expr import Expr, Literal, Grouping, Binary, Unary, Ternery
-from .stmt import Stmt, Expression, Print
+from .expr import Expr, Literal, Grouping, Binary, Unary, Ternery, Variable
+from .stmt import Stmt, Expression, Print, Var
 from .lexer import TokenType, Token
 from typing import TYPE_CHECKING, Any
 
@@ -19,11 +19,34 @@ class RuntimeError(Exception):
         self.message = message
 
 
+class Environment:
+    """An environment holding variables and their values"""
+    values: dict[str, Any]
+
+    def __init__(self):
+        self.values = {}
+
+    def define(self, name: Token, value: Any):
+        """Define a new variable and initialize it with 'value'"""
+        self.values[name.lexeme] = value
+
+    def get(self, name: Token):
+        """
+        Return the value of the variable with 'name' if it is defined.
+        Raise RuntimeError otherwise.
+        """
+        if name.lexeme in self.values:
+            return self.values[name.lexeme]
+        raise RuntimeError(name, "Undefined variable '" + name.lexeme + "'")
+
+
 class Interpreter(Expr.Visitor, Stmt.Visitor):
     error_reporter: ErrorReporter
+    environment: Environment
 
     def __init__(self, error_reporter: ErrorReporter):
         self.error_reporter = error_reporter
+        self.environment = Environment()
 
     def interpret(self, statements: list[Stmt]):
         try:
@@ -35,6 +58,11 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
 
     def execute(self, stmt: Stmt):
         stmt.accept(self)
+
+    def stringify(self, value: Any):
+        if value is None:
+            return "nil"
+        return str(value)
 
     def __check_number_operand(self, operator: Token, operand: object):
         if isinstance(operand, float):
@@ -60,6 +88,8 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
     def evaluate(self, expr: Expr):
         return expr.accept(self)
 
+    ###########################################################################
+    # Expr.Visitor
     def visit_literal_expr(self, expr: Literal):
         return expr.value
 
@@ -67,7 +97,7 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
         return self.evaluate(expr.expression)
 
     def visit_unary_expr(self, expr: Unary):
-        right: object = self.evaluate(expr.right)
+        right: Any = self.evaluate(expr.right)
 
         match expr.operator.type:
             case TokenType.MINUS:
@@ -142,8 +172,19 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             return self.evaluate(expr.then_expr)
         return self.evaluate(expr.else_expr)
 
+    def visit_variable_expr(self, expr: Variable):
+        return self.environment.get(expr.name)
+
+    ###########################################################################
+    # Stmt.Visitor
     def visit_expression_stmt(self, stmt: Expression):
         self.evaluate(stmt.expression)
 
     def visit_print_stmt(self, stmt: Print):
-        print(self.evaluate(stmt.expression))
+        print(self.stringify(self.evaluate(stmt.expression)))
+
+    def visit_var_stmt(self, stmt: Var):
+        value = None
+        if stmt.initializer is not None:
+            value = self.evaluate(stmt.initializer)
+        self.environment.define(stmt.name, value)

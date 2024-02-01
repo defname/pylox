@@ -3,6 +3,19 @@ Provides the Parser class.
 
 The grammar is defined by:
 
+    program     -> declaration* EOF
+
+    declaration -> varDecl
+                   | statement
+
+    varDecl     -> "var" IDENTIFIER ("=" expression)? ";"
+
+    statement   -> exprStmt
+                   | printStmt
+
+    exprStmt    -> expression ";"
+    printStmt   -> "print" expression ";"
+
     expression  -> ternery
     ternery     -> equality ("?" equality ":" ternery)?
     equality    -> comparision ( ("!=" | "==") comparision )*
@@ -13,12 +26,13 @@ The grammar is defined by:
     primary     -> NUMBER | STRING
                    | "true" | "false" | "nil"
                    | "(" expression ")"
+                   | IDENTIFIER
 """
 from __future__ import annotations
 from typing import Callable, TYPE_CHECKING, Union
 from .lexer import Token, TokenType
-from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery
-from .stmt import Stmt, Expression, Print
+from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery, Variable
+from .stmt import Stmt, Expression, Print, Var
 
 if TYPE_CHECKING:
     from .pylox import ErrorReporter
@@ -36,7 +50,7 @@ class ParseError(Exception):
 
 
 class Parser:
-    """Class to parse the gramme defined above"""
+    """Class to parse the gramma defined above"""
     tokens: list[Token]
     current: int
     error_reporter: ErrorReporter
@@ -50,7 +64,7 @@ class Parser:
         statements: list[Stmt] = []
 
         while not self.__is_at_end():
-            statements.append(self.__statement())
+            statements.append(self.__declaration())
         return statements
 
     def __peek(self) -> Token:
@@ -87,6 +101,26 @@ class Parser:
 
     ###########################################################################
     # Statement productions
+    def __declaration(self) -> Union[Stmt, None]:
+        try:
+            if self.__match([TokenType.VAR]):
+                return self.__var_decl()
+            return self.__statement()
+        except ParseError:
+            self.__synchronize()
+            return None
+
+    def __var_decl(self) -> Stmt:
+        var_name = self.__consume(TokenType.IDENTIFIER,
+                                  "Expect variable name")
+        initializer: Union[Expr, None] = None
+        if self.__match([TokenType.EQUAL]):
+            initializer = self.__expression()
+
+        self.__consume(TokenType.SEMICOLON,
+                       "Expect ';' after variable declaration.")
+        return Var(var_name, initializer)
+
     def __statement(self) -> Stmt:
         if self.__match([TokenType.PRINT]):
             return self.__print_statement()
@@ -193,6 +227,9 @@ class Parser:
             self.__consume(TokenType.RIGHT_PAREN,
                            "Expect ')' after expression.")
             return Grouping(expr)
+
+        if self.__match([TokenType.IDENTIFIER]):
+            return Variable(self.__previous())
 
         # check for a faulty positioned binary operator
         if self.__match(BINARY_OPERATOR_TYPES):

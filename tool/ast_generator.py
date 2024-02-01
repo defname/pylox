@@ -28,6 +28,7 @@ Note: this file is generated automatically by tool/ast_generator.py
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Union
 from .lexer import Token, LiteralType
 """
     for imp in imports:
@@ -72,10 +73,10 @@ def generate_type(base_class_name: str, object_definition: str) -> str:
     return source
 
 def generate_members(members: str):
-    member_definitions = (member.strip() for member in members.split(","))
+    member_definitions = (member.strip() for member in members.split(";"))
     source: str = ""
     for member_definition in member_definitions:
-        member_type = member_definition.split(" ")[0].strip()
+        member_type = member_definition.split(" ")[0].strip().replace("~", " ")
         member_name = member_definition.split(" ")[1].strip()
         source += f"    {member_name}: {member_type}\n"
     return source
@@ -90,18 +91,20 @@ if __name__ == "__main__":
 
     BASE_CLASS = "Expr"
     OBJECT_DEFINITIONS = [
-        "Binary: Expr left, Token operator, Expr right",
-        "Unary: Token operator, Expr right",
+        "Binary: Expr left; Token operator; Expr right",
+        "Unary: Token operator; Expr right",
         "Grouping: Expr expression",
         "Literal: LiteralType value",
-        "Ternery: Expr condition, Expr then_expr, Expr else_expr"
+        "Ternery: Expr condition; Expr then_expr; Expr else_expr",
+        "Variable: Token name"
     ]
     generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR)
 
     BASE_CLASS = "Stmt"
     OBJECT_DEFINITIONS = [
         "Expression: Expr expression",
-        "Print: Expr expression"
+        "Print: Expr expression",
+        "Var: Token name; Union[Expr,~None] initializer"
     ]
     IMPORTS = ["Expr"]
     generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR, IMPORTS)

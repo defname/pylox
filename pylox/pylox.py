@@ -19,8 +19,15 @@ class ErrorReporter:
     had_error: bool
     had_runtime_error: bool
 
-    def __init__(self, source: str):
+    def __init__(self, source: str = ""):
         self.source = source
+        self.had_error = False
+        self.had_runtime_error = False
+
+    def update_source(self, source: str):
+        self.source = source
+
+    def reset_errors(self):
         self.had_error = False
         self.had_runtime_error = False
 
@@ -67,6 +74,11 @@ class PyLox:
     Combine the Lexer, etc. to a working interpreter.
     """
     error_reporter: ErrorReporter
+    interpreter: Interpreter
+
+    def __init__(self):
+        self.error_reporter = ErrorReporter()
+        self.interpreter = Interpreter(self.error_reporter)
 
     def run_file(self, filename: str):
         """Read the specified file and run it."""
@@ -84,14 +96,15 @@ class PyLox:
             try:
                 line = input("> ")
                 self.run(line)
-                self.error_reporter.had_error = False
+                self.error_reporter.reset_errors()
             except EOFError:
                 return 0
         return 0
 
     def run(self, source: str):
         """Run the given sourcecode."""
-        self.error_reporter = ErrorReporter(source)
+        self.error_reporter.update_source(source)
+
         lexer = Lexer(source, self.error_reporter)
         lexer.scan()
 
@@ -101,8 +114,7 @@ class PyLox:
         if self.error_reporter.had_error:
             return 65
 
-        interpreter = Interpreter(self.error_reporter)
-        interpreter.interpret(statements)
+        self.interpreter.interpret(statements)
 
         if self.error_reporter.had_runtime_error:
             return 70

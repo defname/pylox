@@ -7,6 +7,7 @@ Note: this file is generated automatically by tool/ast_generator.py
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Union
 from .lexer import Token, LiteralType
 
 
@@ -34,6 +35,10 @@ class Expr(ABC):
 
         @abstractmethod
         def visit_ternery_expr(self, expr: Ternery):
+            pass
+
+        @abstractmethod
+        def visit_variable_expr(self, expr: Variable):
             pass
 
 
@@ -80,4 +85,12 @@ class Ternery(Expr):
 
     def accept(self, visitor: Expr.Visitor):
         return visitor.visit_ternery_expr(self)
+
+
+@dataclass
+class Variable(Expr):
+    name: Token
+
+    def accept(self, visitor: Expr.Visitor):
+        return visitor.visit_variable_expr(self)
 
