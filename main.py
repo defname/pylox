@@ -6,11 +6,10 @@ if __name__ == "__main__":
         print("USAGE: ...")
         sys.exit(64)
     pylox = PyLox()
-    if (len(sys.argv) == 2):
-        pylox.run_file(sys.argv[1])
+    exit_code = 0
+    if len(sys.argv) == 2:
+        exit_code = pylox.run_file(sys.argv[1])
     else:
-        pylox.run_prompt()
-    
-    if pylox.had_error:
-        sys.exit(65)
-    sys.exit(0)
+        exit_code = pylox.run_prompt()
+
+    sys.exit(exit_code)

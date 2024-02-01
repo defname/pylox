@@ -2,7 +2,13 @@
 Provides the function generate_ast to generate a python source code
 file containing auto generated classes for the abstract syntax tree.
 """
-def generate_ast(base_class_name: str, object_definitions: list[str]) -> str:
+import sys
+
+
+def generate_ast(base_class_name: str,
+                 object_definitions: list[str],
+                 output_dir: str,
+                 imports: list[str] = []) -> str:
     """
     Generate python sourcecode with class definitions implementing the
     given object_definitions.
@@ -22,7 +28,11 @@ Note: this file is generated automatically by tool/ast_generator.py
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from .lexer import Token
+from .lexer import Token, LiteralType
+"""
+    for imp in imports:
+        source += f"from .{imp.lower()} import {imp}\n"
+    source += """
 
 class """+base_class_name+"""(ABC):
     @abstractmethod
@@ -30,15 +40,22 @@ class """+base_class_name+"""(ABC):
         pass
 
 """
+
+    source += "    class Visitor(ABC):\n"
+    for object_definition in object_definitions:
+        class_name = object_definition.split(":")[0].strip()
+        source += "        @abstractmethod\n"
+        source += f"        def visit_{class_name.lower()}_{base_class_name.lower()}(self, {base_class_name.lower()}: {class_name}):\n"
+        source += "            pass\n\n"
+
     for object_definition in object_definitions:
         source += generate_type(base_class_name, object_definition) + "\n"
 
-    source += "\nclass Visitor(ABC):\n"
-    for object_definition in object_definitions:
-        class_name = object_definition.split(":")[0].strip()
-        source += "    @abstractmethod\n"
-        source += f"    def visit_{class_name.lower()}_{base_class_name.lower()}(self, {base_class_name.lower()}: {class_name}):\n"
-        source += "        pass\n\n"
+        with open(
+                output_dir.rstrip("/") + "/" + base_class_name.lower() + ".py",
+                mode="w",
+                encoding="UTF-8") as file:
+            file.write(source)
     return source
 
 def generate_type(base_class_name: str, object_definition: str) -> str:
@@ -48,7 +65,8 @@ def generate_type(base_class_name: str, object_definition: str) -> str:
     source = "\n@dataclass\n"
     source += f"class {class_name}({base_class_name}):\n"
     source += generate_members(members)
-    source += "\n    def accept(self, visitor: Visitor):\n"
+
+    source += "\n    def accept(self, visitor: " + base_class_name + ".Visitor):\n"
     source += f"        return visitor.visit_{class_name.lower()}_{base_class_name.lower()}(self)\n"
 
     return source
@@ -64,11 +82,26 @@ def generate_members(members: str):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("USAGE " + sys.argv[0] + " <output_dir>")
+        sys.exit(64)
+
+    OUTPUT_DIR = sys.argv[1]
+
     BASE_CLASS = "Expr"
     OBJECT_DEFINITIONS = [
         "Binary: Expr left, Token operator, Expr right",
         "Unary: Token operator, Expr right",
         "Grouping: Expr expression",
-        "Literal: str|float|bool|None value"
+        "Literal: LiteralType value",
+        "Ternery: Expr condition, Expr then_expr, Expr else_expr"
     ]
-    print(generate_ast(BASE_CLASS, OBJECT_DEFINITIONS))
+    generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR)
+
+    BASE_CLASS = "Stmt"
+    OBJECT_DEFINITIONS = [
+        "Expression: Expr expression",
+        "Print: Expr expression"
+    ]
+    IMPORTS = ["Expr"]
+    generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR, IMPORTS)

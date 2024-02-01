@@ -1,4 +1,1 @@
-fun test(a) {
-    print a + 123.2adsd;
-    return asd123.3;
-}
+2*"foo"

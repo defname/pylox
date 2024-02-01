@@ -3,7 +3,8 @@ Provides the Parser class.
 
 The grammar is defined by:
 
-    expression  -> equality
+    expression  -> ternery
+    ternery     -> equality ("?" equality ":" ternery)?
     equality    -> comparision ( ("!=" | "==") comparision )*
     comparision -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
     term        -> factor ( ( "-" | "+" ) factor )*
@@ -14,12 +15,19 @@ The grammar is defined by:
                    | "(" expression ")"
 """
 from __future__ import annotations
-from typing import Callable, TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING, Union
 from .lexer import Token, TokenType
-from .ast import Expr, Binary, Unary, Grouping, Literal
+from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery
+from .stmt import Stmt, Expression, Print
 
 if TYPE_CHECKING:
     from .pylox import ErrorReporter
+
+BINARY_OPERATOR_TYPES = [
+        TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL, TokenType.GREATER,
+        TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL,
+        TokenType.MINUS, TokenType.PLUS, TokenType.SLASH, TokenType.STAR
+    ]
 
 
 class ParseError(Exception):
@@ -38,11 +46,12 @@ class Parser:
         self.current = 0
         self.error_reporter = error_reporter
 
-    def parse(self) -> Expr|None:
-        try:
-            return self.__expression()
-        except ParseError:
-            return None
+    def parse(self) -> list[Stmt]:
+        statements: list[Stmt] = []
+
+        while not self.__is_at_end():
+            statements.append(self.__statement())
+        return statements
 
     def __peek(self) -> Token:
         """Return current token"""
@@ -76,6 +85,26 @@ class Parser:
                 return True
         return False
 
+    ###########################################################################
+    # Statement productions
+    def __statement(self) -> Stmt:
+        if self.__match([TokenType.PRINT]):
+            return self.__print_statement()
+
+        return self.__expression_statement()
+
+    def __print_statement(self) -> Stmt:
+        value: Expr = self.__expression()
+        self.__consume(TokenType.SEMICOLON, "Expect ';' after expression.")
+        return Print(value)
+
+    def __expression_statement(self) -> Stmt:
+        value: Expr = self.__expression()
+        self.__consume(TokenType.SEMICOLON, "Expect ';' after expression.")
+        return Expression(value)
+
+    ###########################################################################
+    # Expression productions
     def __binary_expression(
             self,
             operand: Callable[[], Expr],
@@ -86,12 +115,32 @@ class Parser:
         while self.__match(operator_types):
             operator: Token = self.__previous()
             right: Expr = operand()
+
             expr = Binary(expr, operator, right)
 
         return expr
 
     def __expression(self) -> Expr:
-        return self.__equality()
+        return self.__ternery()
+
+    def __ternery(self) -> Expr:
+        expr: Expr = self.__equality()
+
+        if self.__match([TokenType.QUESTIONMARK]):
+            then_expr: Expr = self.__ternery()
+
+            if self.__match([TokenType.COLON]):
+                else_expr: Expr = self.__ternery()
+
+            else:
+                self.__advance()
+                self.error_reporter.report_parser(self.__peek().position,
+                                                  "Expect ':'.")
+                return self.__ternery()
+
+            expr = Ternery(expr, then_expr, else_expr)
+
+        return expr
 
     def __equality(self) -> Expr:
         return self.__binary_expression(
@@ -145,6 +194,12 @@ class Parser:
                            "Expect ')' after expression.")
             return Grouping(expr)
 
+        # check for a faulty positioned binary operator
+        if self.__match(BINARY_OPERATOR_TYPES):
+            self.error_reporter.report_parser(self.__previous().position,
+                                              "Left hand operand expected.")
+            return self.__primary()
+
         raise self.__error(self.__peek(), "Expect expression.")
 
     def __error(self, token: Token, message: str) -> ParseError:
@@ -165,4 +220,29 @@ class Parser:
 
         raise self.__error(self.__peek(), message)
 
+    def __synchronize(self):
+        """Skip everything until next expression to resynchronize parser"""
+        self.__advance()
 
+        while not self.__is_at_end():
+            if self.__previous().type == TokenType.SEMICOLON:
+                return
+
+            match self.__peek():
+                case TokenType.CLASS:
+                    return
+                case TokenType.FUN:
+                    return
+                case TokenType.VAR:
+                    return
+                case TokenType.FOR:
+                    return
+                case TokenType.IF:
+                    return
+                case TokenType.WHILE:
+                    return
+                case TokenType.PRINT:
+                    return
+                case TokenType.RETURN:
+                    return
+            self.__advance()

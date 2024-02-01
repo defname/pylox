@@ -8,6 +8,8 @@ import dataclasses
 import copy
 
 from typing import TYPE_CHECKING
+from typing import Union
+
 if TYPE_CHECKING:
     from typing import Final
     from .pylox import ErrorReporter
@@ -16,6 +18,7 @@ TokenType = Enum("TokenType", [
     # single-character tokens
     "LEFT_PAREN", "RIGHT_PAREN", "LEFT_BRACE", "RIGHT_BRACE",
     "COMMA", "DOT", "MINUS", "PLUS", "SEMICOLON", "SLASH", "STAR",
+    "QUESTIONMARK", "COLON",
 
     # one or two character tokens
     "BANG", "BANG_EQUAL",
@@ -70,6 +73,9 @@ class SourcePosition:
         return f"line: {self.line}, start: {self.start}, position: {self.current}"
 
 
+LiteralType = Union[str, float, bool, None]
+
+
 @dataclasses.dataclass
 class Token:
     """
@@ -80,7 +86,7 @@ class Token:
     type: TokenType
     lexeme: str
     position: SourcePosition
-    literal: str|float|bool|None = None
+    literal: LiteralType = None
 
     def __str__(self):
         return str(self.type) + " " + str(self.lexeme) + " " + str(self.literal)
@@ -135,7 +141,11 @@ class Lexer:
                 self.__add_token(TokenType.MINUS)
             case "*":
                 self.__add_token(TokenType.STAR)
-            
+            case "?":
+                self.__add_token(TokenType.QUESTIONMARK)
+            case ":":
+                self.__add_token(TokenType.COLON)
+
             # whitespaces
             case " ":
                 pass
@@ -146,7 +156,7 @@ class Lexer:
             # newline
             case "\n":
                 self.position.line += 1
-            
+
             # one or two character tokens
             case "!":
                 if self.__match("="):
@@ -230,7 +240,7 @@ class Lexer:
         """Check if c is alphanumeric"""
         return Lexer.is_alpha(c) or Lexer.is_numeric(c)
 
-    def __add_token(self, typ: TokenType, literal: str|float|None = None):
+    def __add_token(self, typ: TokenType, literal: LiteralType = None):
         """Add token to the token list."""
         lexeme = self.source[self.position.start:self.position.current]
         self.tokens.append(Token(typ, lexeme, copy.copy(self.position), literal))
