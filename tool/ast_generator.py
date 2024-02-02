@@ -107,6 +107,7 @@ if __name__ == "__main__":
         "Expression: Expr expression",
         "If: Expr condition; Stmt then_branch; Optional[Stmt] else_branch",
         "Print: Expr expression",
+        "While: Expr condition; Stmt body",
         "Var: Token name; Optional[Expr] initializer",
         "Block: list[Stmt] statements"
     ]

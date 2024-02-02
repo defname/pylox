@@ -11,14 +11,19 @@ The grammar is defined by:
     varDecl     -> "var" IDENTIFIER ("=" expression)? ";"
 
     statement   -> exprStmt
+                   | forStmt
                    | ifStmt
                    | printStmt
+                   | whileStmt
                    | block
 
     exprStmt    -> expression ";"
+    forStmt     -> "for" "(" (varDecl | exprStmt | ";")
+                   expression? ";" expression? ")" statement
     ifStmt      -> "if" "(" expression ")" statement
                    ("else" statement)?
     printStmt   -> "print" expression ";"
+    whileStmt   -> "while" "(" expression ")" statement
     block       -> "{" declaration* "}"
 
     expression  -> assignment
@@ -42,7 +47,7 @@ from typing import Callable, TYPE_CHECKING, Optional
 from .lexer import Token, TokenType
 from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery, Variable, \
         Assign, Logical
-from .stmt import Stmt, Expression, Print, Var, Block, If
+from .stmt import Stmt, Expression, Print, Var, Block, If, While
 
 if TYPE_CHECKING:
     from .pylox import ErrorReporter
@@ -142,6 +147,12 @@ class Parser:
         if self.__match([TokenType.IF]):
             return self.__if_statement()
 
+        if self.__match([TokenType.WHILE]):
+            return self.__while_statement()
+
+        if self.__match([TokenType.FOR]):
+            return self.__for_statement()
+
         if self.__match([TokenType.PRINT]):
             return self.__print_statement()
 
@@ -164,6 +175,53 @@ class Parser:
             else_branch = self.__statement()
 
         return If(condition, then_branch, else_branch)
+
+    def __while_statement(self) -> Stmt:
+        self.__consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.")
+        condition: Expr = self.__expression()
+        self.__consume(TokenType.RIGHT_PAREN, "Expect ')' after 'while'.")
+        body: Stmt = self.__statement()
+
+        return While(condition, body)
+
+    def __for_statement(self) -> Stmt:
+        self.__consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.")
+        initializer: Optional[Stmt] = None
+        if self.__match([TokenType.SEMICOLON]):
+            initializer = None
+        elif self.__match([TokenType.VAR]):
+            initializer = self.__var_decl()
+        else:
+            initializer = self.__expression_statement()
+
+        condition: Optional[Expr] = None
+        if not self.__check(TokenType.SEMICOLON):
+            condition = self.__expression()
+        self.__consume(TokenType.SEMICOLON, "Expect ';' after loop condition.")
+
+        increment: Optional[Expr] = None
+        if not self.__check(TokenType.RIGHT_PAREN):
+            increment = self.__expression()
+        self.__consume(TokenType.RIGHT_PAREN,
+                       "Expect ')' after for clause.")
+
+        body: Stmt = self.__statement()
+
+        # Build while loop
+        if increment is not None:
+            body = Block([body, Expression(increment)])
+
+        if condition is None:
+            condition = Literal(True)
+
+        body = While(condition, body)
+
+        if initializer is not None:
+            body = Block([initializer, body])
+
+        return body
+
+        return 
 
     def __print_statement(self) -> Stmt:
         value: Expr = self.__expression()

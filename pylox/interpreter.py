@@ -2,7 +2,7 @@
 from __future__ import annotations
 from .expr import Expr, Literal, Grouping, Binary, Unary, Ternery, Variable, \
         Assign, Logical
-from .stmt import Stmt, Expression, Print, Var, Block, If
+from .stmt import Stmt, Expression, Print, Var, Block, If, While
 from .lexer import TokenType, Token
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -245,6 +245,10 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
         elif stmt.else_branch is not None:
             self.execute(stmt.else_branch)
 
+    def visit_while_stmt(self, stmt: While):
+        while self.__is_truthy(self.evaluate(stmt.condition)):
+            self.execute(stmt.body)
+
     def visit_print_stmt(self, stmt: Print):
         print(self.stringify(self.evaluate(stmt.expression)))
 
@@ -256,4 +260,4 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
 
     def visit_block_stmt(self, stmt: Block):
         self.__execute_block(stmt.statements,
-                            Environment(self.environment))
+                             Environment(self.environment))
