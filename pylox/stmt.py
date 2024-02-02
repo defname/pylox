@@ -7,7 +7,7 @@ Note: this file is generated automatically by tool/ast_generator.py
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Union
+from typing import Optional
 from .lexer import Token, LiteralType
 from .expr import Expr
 
@@ -23,11 +23,19 @@ class Stmt(ABC):
             pass
 
         @abstractmethod
+        def visit_if_stmt(self, stmt: If):
+            pass
+
+        @abstractmethod
         def visit_print_stmt(self, stmt: Print):
             pass
 
         @abstractmethod
         def visit_var_stmt(self, stmt: Var):
+            pass
+
+        @abstractmethod
+        def visit_block_stmt(self, stmt: Block):
             pass
 
 
@@ -37,6 +45,16 @@ class Expression(Stmt):
 
     def accept(self, visitor: Stmt.Visitor):
         return visitor.visit_expression_stmt(self)
+
+
+@dataclass
+class If(Stmt):
+    condition: Expr
+    then_branch: Stmt
+    else_branch: Optional[Stmt]
+
+    def accept(self, visitor: Stmt.Visitor):
+        return visitor.visit_if_stmt(self)
 
 
 @dataclass
@@ -50,8 +68,16 @@ class Print(Stmt):
 @dataclass
 class Var(Stmt):
     name: Token
-    initializer: Union[Expr, None]
+    initializer: Optional[Expr]
 
     def accept(self, visitor: Stmt.Visitor):
         return visitor.visit_var_stmt(self)
+
+
+@dataclass
+class Block(Stmt):
+    statements: list[Stmt]
+
+    def accept(self, visitor: Stmt.Visitor):
+        return visitor.visit_block_stmt(self)
 

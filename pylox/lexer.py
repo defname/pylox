@@ -104,7 +104,6 @@ class Lexer:
 
         self.position = SourcePosition(1, 0, 0)
 
-
     def scan(self) -> list[Token]:
         """
         Scan the source and split it up into usable Tokens.
@@ -127,7 +126,7 @@ class Lexer:
                 self.__add_token(TokenType.RIGHT_PAREN)
             case "{":
                 self.__add_token(TokenType.LEFT_BRACE)
-            case ")":
+            case "}":
                 self.__add_token(TokenType.RIGHT_BRACE)
             case ",":
                 self.__add_token(TokenType.COMMA)

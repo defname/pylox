@@ -1,1 +1,10 @@
-2*"foo"
+var a = "outer";
+
+{
+    var a = a + " inner";
+    print a;
+}
+
+print a;
+
+

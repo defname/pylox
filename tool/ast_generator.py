@@ -28,7 +28,7 @@ Note: this file is generated automatically by tool/ast_generator.py
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Union
+from typing import Optional
 from .lexer import Token, LiteralType
 """
     for imp in imports:
@@ -97,15 +97,18 @@ if __name__ == "__main__":
         "Literal: LiteralType value",
         "Ternery: Expr condition; Expr then_expr; Expr else_expr",
         "Variable: Token name",
-        "Assign: Token name; Expr value"
+        "Assign: Token name; Expr value",
+        "Logical: Expr left; Token operator; Expr right"
     ]
     generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR)
 
     BASE_CLASS = "Stmt"
     OBJECT_DEFINITIONS = [
         "Expression: Expr expression",
+        "If: Expr condition; Stmt then_branch; Optional[Stmt] else_branch",
         "Print: Expr expression",
-        "Var: Token name; Union[Expr,~None] initializer"
+        "Var: Token name; Optional[Expr] initializer",
+        "Block: list[Stmt] statements"
     ]
     IMPORTS = ["Expr"]
     generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR, IMPORTS)

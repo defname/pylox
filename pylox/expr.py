@@ -7,7 +7,7 @@ Note: this file is generated automatically by tool/ast_generator.py
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Union
+from typing import Optional
 from .lexer import Token, LiteralType
 
 
@@ -43,6 +43,10 @@ class Expr(ABC):
 
         @abstractmethod
         def visit_assign_expr(self, expr: Assign):
+            pass
+
+        @abstractmethod
+        def visit_logical_expr(self, expr: Logical):
             pass
 
 
@@ -106,4 +110,14 @@ class Assign(Expr):
 
     def accept(self, visitor: Expr.Visitor):
         return visitor.visit_assign_expr(self)
+
+
+@dataclass
+class Logical(Expr):
+    left: Expr
+    operator: Token
+    right: Expr
+
+    def accept(self, visitor: Expr.Visitor):
+        return visitor.visit_logical_expr(self)
 

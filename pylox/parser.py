@@ -11,14 +11,21 @@ The grammar is defined by:
     varDecl     -> "var" IDENTIFIER ("=" expression)? ";"
 
     statement   -> exprStmt
+                   | ifStmt
                    | printStmt
+                   | block
 
     exprStmt    -> expression ";"
+    ifStmt      -> "if" "(" expression ")" statement
+                   ("else" statement)?
     printStmt   -> "print" expression ";"
+    block       -> "{" declaration* "}"
 
     expression  -> assignment
     assignment  -> IDENTIFIER "=" assignment
-                   | ternery
+                   | logical_or
+    logical_or  -> logical_and ("or" logical_and)*
+    logical_and -> ternery ("and" ternery)*
     ternery     -> equality ("?" equality ":" ternery)?
     equality    -> comparision ( ("!=" | "==") comparision )*
     comparision -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
@@ -31,11 +38,11 @@ The grammar is defined by:
                    | IDENTIFIER
 """
 from __future__ import annotations
-from typing import Callable, TYPE_CHECKING, Union
+from typing import Callable, TYPE_CHECKING, Optional
 from .lexer import Token, TokenType
 from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery, Variable, \
-        Assign
-from .stmt import Stmt, Expression, Print, Var
+        Assign, Logical
+from .stmt import Stmt, Expression, Print, Var, Block, If
 
 if TYPE_CHECKING:
     from .pylox import ErrorReporter
@@ -64,10 +71,17 @@ class Parser:
         self.error_reporter = error_reporter
 
     def parse(self) -> list[Stmt]:
+        """
+        Parse tokens and return a list of statements.
+        If parser enters panic mode and has to synchronize discard
+        this statement.
+        """
         statements: list[Stmt] = []
 
         while not self.__is_at_end():
-            statements.append(self.__declaration())
+            stmt = self.__declaration()
+            if stmt is not None:
+                statements.append(stmt)
         return statements
 
     def __peek(self) -> Token:
@@ -104,7 +118,7 @@ class Parser:
 
     ###########################################################################
     # Statement productions
-    def __declaration(self) -> Union[Stmt, None]:
+    def __declaration(self) -> Optional[Stmt]:
         try:
             if self.__match([TokenType.VAR]):
                 return self.__var_decl()
@@ -116,7 +130,7 @@ class Parser:
     def __var_decl(self) -> Stmt:
         var_name = self.__consume(TokenType.IDENTIFIER,
                                   "Expect variable name")
-        initializer: Union[Expr, None] = None
+        initializer: Optional[Expr] = None
         if self.__match([TokenType.EQUAL]):
             initializer = self.__expression()
 
@@ -125,10 +139,31 @@ class Parser:
         return Var(var_name, initializer)
 
     def __statement(self) -> Stmt:
+        if self.__match([TokenType.IF]):
+            return self.__if_statement()
+
         if self.__match([TokenType.PRINT]):
             return self.__print_statement()
 
+        if self.__match([TokenType.LEFT_BRACE]):
+            return Block(self.__block())
+
         return self.__expression_statement()
+
+    def __if_statement(self) -> Stmt:
+        self.__consume(TokenType.LEFT_PAREN,
+                       "Expect '(' after 'if'.")
+        condition: Expr = self.__expression()
+        self.__consume(TokenType.RIGHT_PAREN,
+                       "Expect ')' after 'if' condition.")
+
+        then_branch: Stmt = self.__statement()
+        else_branch: Optional[Stmt] = None
+
+        if self.__match([TokenType.ELSE]):
+            else_branch = self.__statement()
+
+        return If(condition, then_branch, else_branch)
 
     def __print_statement(self) -> Stmt:
         value: Expr = self.__expression()
@@ -139,6 +174,17 @@ class Parser:
         value: Expr = self.__expression()
         self.__consume(TokenType.SEMICOLON, "Expect ';' after expression.")
         return Expression(value)
+
+    def __block(self) -> list[Stmt]:
+        statements: list[Stmt] = []
+        while not self.__check(TokenType.RIGHT_BRACE) \
+                and not self.__is_at_end():
+            stmt = self.__declaration()
+            if stmt is not None:
+                statements.append(stmt)
+
+        self.__consume(TokenType.RIGHT_BRACE, "Expect '}' after block.")
+        return statements
 
     ###########################################################################
     # Expression productions
@@ -161,7 +207,7 @@ class Parser:
         return self.__assignment()
 
     def __assignment(self) -> Expr:
-        expr: Expr = self.__ternery()
+        expr: Expr = self.__or()
 
         if self.__match([TokenType.EQUAL]):
             equals: Token = self.__previous()
@@ -172,6 +218,28 @@ class Parser:
 
             self.__error(equals, "Invalid assignment target.")
         return expr
+
+    def __or(self) -> Expr:
+        left: Expr = self.__and()
+
+        while self.__match([TokenType.OR]):
+            operator: Token = self.__previous()
+            right: Expr = self.__and()
+
+            left = Logical(left, operator, right)
+
+        return left
+
+    def __and(self) -> Expr:
+        left: Expr = self.__ternery()
+
+        while self.__match([TokenType.AND]):
+            operator: Token = self.__previous()
+            right: Expr = self.__ternery()
+
+            left = Logical(left, operator, right)
+
+        return left
 
     def __ternery(self) -> Expr:
         expr: Expr = self.__equality()
