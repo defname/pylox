@@ -1,11 +1,10 @@
-var a = 0;
-
-while (a < 10) {
-    print a;
-    a = a+1;
+var start = time();
+print start;
+for (var i=0; i < 1000; i=i+1) {
+    print time() - start;
 }
+var end = time();
+print end;
+var d = end - start;
 
-print a;
-
-for (var i=0; i<10; i = i+1)
-    print i;
+print "Laufzeit: " + d + "ms";

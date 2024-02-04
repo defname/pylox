@@ -1,88 +1,35 @@
 """Implements Interpreter"""
 from __future__ import annotations
-from .expr import Expr, Literal, Grouping, Binary, Unary, Ternery, Variable, \
-        Assign, Logical
-from .stmt import Stmt, Expression, Print, Var, Block, If, While
-from .lexer import TokenType, Token
 from typing import TYPE_CHECKING, Any, Optional
+from .expr import Expr, Literal, Grouping, Binary, Unary, Ternery, Variable, \
+        Assign, Logical, Call
+from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break
+from .lexer import TokenType, Token
+from .callable import LoxCallable
+from .environment import Environment, GlobalEnvironment, UNINITIALIZED
+from .errors import LoxRuntimeError
 
 if TYPE_CHECKING:
     from .pylox import ErrorReporter
 
 
-class RuntimeError(Exception):
-    def __init__(self,
-                 token: Token,
-                 message: str,
-                 *args: object):
-        super().__init__(message, args)
-        self.token = token
-        self.message = message
-
-
-UNINITIALIZED = object()
-
-
-class Environment:
-    """An environment holding variables and their values"""
-    values: dict[str, Any]
-    enclosing: Optional[Environment]
-
-    def __init__(self, enclosing: Optional[Environment] = None):
-        self.values = {}
-        self.enclosing = enclosing
-
-    def define(self, name: Token, value: Any = UNINITIALIZED):
-        """Define a new variable and initialize it with 'value'"""
-        self.values[name.lexeme] = value
-
-    def get(self, name: Token):
-        """
-        Return the value of the variable with 'name' if it is defined.
-        Raise RuntimeError otherwise.
-        """
-        if name.lexeme in self.values:
-            if self.values[name.lexeme] is UNINITIALIZED:
-                raise RuntimeError(
-                        name,
-                        "Uninitialized variable '" + name.lexeme + "'.")
-            return self.values[name.lexeme]
-
-        if self.enclosing is not None:
-            return self.enclosing.get(name)
-
-        raise RuntimeError(name, "Undefined variable '" + name.lexeme + "'.")
-
-    def assign(self, name: Token, value: Any):
-        """
-        Assign a value to a variable.
-        Raise RuntimeError if the variable doesn't exist.
-        """
-        if name.lexeme in self.values:
-            self.values[name.lexeme] = value
-            return
-
-        if self.enclosing is not None:
-            self.enclosing.assign(name, value)
-            return
-
-        raise RuntimeError(name,
-                           "Undefined variable '" + name.lexeme + "'.")
-
-
 class Interpreter(Expr.Visitor, Stmt.Visitor):
     error_reporter: ErrorReporter
+    global_environment: Environment
     environment: Environment
+    break_loop: bool
 
     def __init__(self, error_reporter: ErrorReporter):
         self.error_reporter = error_reporter
-        self.environment = Environment()
+        self.global_environment = GlobalEnvironment()
+        self.environment = self.global_environment
+        self.break_loop = False
 
     def interpret(self, statements: list[Stmt]):
         try:
             for stmt in statements:
                 self.execute(stmt)
-        except RuntimeError as error:
+        except LoxRuntimeError as error:
             self.error_reporter.report_runtime(error.token.position,
                                                error.message)
 
@@ -98,6 +45,8 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             self.environment = environment
 
             for stmnt in statements:
+                if self.break_loop:
+                    break
                 self.execute(stmnt)
         finally:
             self.environment = previous_environment
@@ -110,7 +59,7 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
     def __check_number_operand(self, operator: Token, operand: object):
         if isinstance(operand, float):
             return
-        raise RuntimeError(operator, "Operand must be a number.")
+        raise LoxRuntimeError(operator, "Operand must be a number.")
 
     def __check_number_operands(self,
                                 operator: Token,
@@ -118,7 +67,7 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                                 right: object):
         if isinstance(left, float) and isinstance(right, float):
             return
-        raise RuntimeError(operator, "Both operands mus be numbers.")
+        raise LoxRuntimeError(operator, "Both operands mus be numbers.")
 
     def __is_truthy(self, operand: object):
         if operand is None or (isinstance(operand, bool) and not operand):
@@ -138,6 +87,28 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
 
     def visit_grouping_expr(self, expr: Grouping):
         return self.evaluate(expr.expression)
+
+    def visit_call_expr(self, expr: Call):
+        callee = self.evaluate(expr.callee)
+        arguments: list = []
+        for arg in expr.arguments:
+            arguments.append(self.evaluate(arg))
+
+        if not isinstance(callee, LoxCallable):
+            raise LoxRuntimeError(
+                    callee.paren,
+                    "Can only call functions and classes.")
+
+        function: LoxCallable = callee
+        if len(arguments) != function.arity():
+            raise LoxRuntimeError(
+                    expr.paren,
+                    "Expected " + str(function.arity())
+                    + " arguments, but got "
+                    + str(len(arguments)) + "."
+                )
+
+        return function.call(self, arguments)
 
     def visit_unary_expr(self, expr: Unary):
         right: Any = self.evaluate(expr.right)
@@ -180,19 +151,19 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                 # implicit str conversion
                 if isinstance(left, float) and isinstance(right, str):
                     try:
-                        return left + float(right)
+                        return str(left) + right
                     except ValueError:
-                        raise RuntimeError(
+                        raise LoxRuntimeError(
                                 expr.operator,
-                                "Cannot convert '"+right+"' to number.")
+                                "Cannot convert '"+str(left)+"' to string.")
                 if isinstance(left, str) and isinstance(right, float):
                     try:
-                        return float(left) + right
+                        return left + str(right)
                     except ValueError:
-                        raise RuntimeError(
+                        raise LoxRuntimeError(
                                 expr.operator,
-                                "Cannot convert '"+left+"' to number.")
-                raise RuntimeError(
+                                "Cannot convert '"+str(right)+"' to str.")
+                raise LoxRuntimeError(
                         expr.operator,
                         "Both operands have to be strings or numbers"
                     )
@@ -205,8 +176,8 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             case TokenType.SLASH:
                 self.__check_number_operands(expr.operator, left, right)
                 if right == 0:
-                    raise RuntimeError(expr.operator,
-                                       "Do not divide by zero!")
+                    raise LoxRuntimeError(expr.operator,
+                                          "Do not divide by zero!")
                 return float(left) / float(right)
 
     def visit_ternery_expr(self, expr: Ternery):
@@ -246,8 +217,10 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             self.execute(stmt.else_branch)
 
     def visit_while_stmt(self, stmt: While):
-        while self.__is_truthy(self.evaluate(stmt.condition)):
+        while not self.break_loop \
+                and self.__is_truthy(self.evaluate(stmt.condition)):
             self.execute(stmt.body)
+        self.break_loop = False
 
     def visit_print_stmt(self, stmt: Print):
         print(self.stringify(self.evaluate(stmt.expression)))
@@ -261,3 +234,6 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
     def visit_block_stmt(self, stmt: Block):
         self.__execute_block(stmt.statements,
                              Environment(self.environment))
+
+    def visit_break_stmt(self, stmt: Break):
+        self.break_loop = True

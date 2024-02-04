@@ -22,6 +22,10 @@ class Expr(ABC):
             pass
 
         @abstractmethod
+        def visit_call_expr(self, expr: Call):
+            pass
+
+        @abstractmethod
         def visit_unary_expr(self, expr: Unary):
             pass
 
@@ -58,6 +62,16 @@ class Binary(Expr):
 
     def accept(self, visitor: Expr.Visitor):
         return visitor.visit_binary_expr(self)
+
+
+@dataclass
+class Call(Expr):
+    callee: Expr
+    paren: Token
+    arguments: list[Expr]
+
+    def accept(self, visitor: Expr.Visitor):
+        return visitor.visit_call_expr(self)
 
 
 @dataclass

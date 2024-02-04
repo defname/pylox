@@ -3,7 +3,7 @@ Helper class to print the ast.
 
 Also simple application of the visitor pattern.
 """
-from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery
+from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery, Call
 
 class AstPrinter(Expr.Visitor):
     def print(self, expr: Expr):
@@ -37,3 +37,6 @@ class AstPrinter(Expr.Visitor):
                                        expr.then_expr,
                                        expr.else_expr
                                     ])
+
+    def visit_call_expr(self, expr: Call):
+        return "FUNCTION CALL"

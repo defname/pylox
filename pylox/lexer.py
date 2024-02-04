@@ -31,7 +31,7 @@ TokenType = Enum("TokenType", [
 
     # keywords
     "AND", "CLASS", "ELSE", "FALSE", "FUN", "FOR", "IF", "NIL", "OR",
-    "PRINT", "RETURN", "SUPER", "THIS", "TRUE", "VAR", "WHILE",
+    "PRINT", "RETURN", "SUPER", "THIS", "TRUE", "VAR", "WHILE", "BREAK",
 
     # end-of-file
     "EOF"
@@ -53,7 +53,8 @@ KEYWORD_TYPE: Final[dict[str, TokenType]] = {
     "this": TokenType.THIS,
     "true": TokenType.TRUE,
     "var": TokenType.VAR,
-    "while": TokenType.WHILE
+    "while": TokenType.WHILE,
+    "break": TokenType.BREAK
 }
 
 

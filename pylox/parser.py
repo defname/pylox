@@ -16,6 +16,7 @@ The grammar is defined by:
                    | printStmt
                    | whileStmt
                    | block
+                   | breakStmt
 
     exprStmt    -> expression ";"
     forStmt     -> "for" "(" (varDecl | exprStmt | ";")
@@ -25,6 +26,7 @@ The grammar is defined by:
     printStmt   -> "print" expression ";"
     whileStmt   -> "while" "(" expression ")" statement
     block       -> "{" declaration* "}"
+    breakStmt   -> "break" ";"
 
     expression  -> assignment
     assignment  -> IDENTIFIER "=" assignment
@@ -36,7 +38,10 @@ The grammar is defined by:
     comparision -> term ( ( ">" | ">=" | "<" | "<=" ) term )*
     term        -> factor ( ( "-" | "+" ) factor )*
     factor      -> unary ( ( "/"  | "*" ) unary )*
-    unary       -> ( "!" | "-" ) unary | primary
+    unary       -> ( "!" | "-" ) unary | call
+    call        -> primary ( "(" arguments ")" )*
+    arguments   -> expression ( "," expression )*
+
     primary     -> NUMBER | STRING
                    | "true" | "false" | "nil"
                    | "(" expression ")"
@@ -46,8 +51,8 @@ from __future__ import annotations
 from typing import Callable, TYPE_CHECKING, Optional
 from .lexer import Token, TokenType
 from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery, Variable, \
-        Assign, Logical
-from .stmt import Stmt, Expression, Print, Var, Block, If, While
+        Assign, Logical, Call
+from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break
 
 if TYPE_CHECKING:
     from .pylox import ErrorReporter
@@ -69,11 +74,13 @@ class Parser:
     tokens: list[Token]
     current: int
     error_reporter: ErrorReporter
+    nested_loops: int
 
     def __init__(self, tokens: list[Token], error_reporter: ErrorReporter):
         self.tokens = tokens
         self.current = 0
         self.error_reporter = error_reporter
+        self.nested_loops = 0
 
     def parse(self) -> list[Stmt]:
         """
@@ -82,6 +89,7 @@ class Parser:
         this statement.
         """
         statements: list[Stmt] = []
+        self.nested_loops = 0
 
         while not self.__is_at_end():
             stmt = self.__declaration()
@@ -159,6 +167,12 @@ class Parser:
         if self.__match([TokenType.LEFT_BRACE]):
             return Block(self.__block())
 
+        if self.__match([TokenType.BREAK]):
+            stmt: Optional[Stmt] = self.__break_statement()
+            if stmt is not None:
+                return stmt
+            # otherwise just continue
+
         return self.__expression_statement()
 
     def __if_statement(self) -> Stmt:
@@ -180,7 +194,9 @@ class Parser:
         self.__consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.")
         condition: Expr = self.__expression()
         self.__consume(TokenType.RIGHT_PAREN, "Expect ')' after 'while'.")
+        self.nested_loops += 1
         body: Stmt = self.__statement()
+        self.nested_loops -= 1
 
         return While(condition, body)
 
@@ -205,7 +221,9 @@ class Parser:
         self.__consume(TokenType.RIGHT_PAREN,
                        "Expect ')' after for clause.")
 
+        self.nested_loops += 1
         body: Stmt = self.__statement()
+        self.nested_loops -= 1
 
         # Build while loop
         if increment is not None:
@@ -220,8 +238,6 @@ class Parser:
             body = Block([initializer, body])
 
         return body
-
-        return 
 
     def __print_statement(self) -> Stmt:
         value: Expr = self.__expression()
@@ -243,6 +259,14 @@ class Parser:
 
         self.__consume(TokenType.RIGHT_BRACE, "Expect '}' after block.")
         return statements
+
+    def __break_statement(self) -> Stmt:
+        if self.nested_loops == 0:
+            raise self.__error(self.__previous(),
+                               "'break' is only allowed inside loops")
+        self.__consume(TokenType.SEMICOLON,
+                       "Expect ';' after 'break'.")
+        return Break()
 
     ###########################################################################
     # Expression productions
@@ -350,7 +374,37 @@ class Parser:
             right: Expr = self.__unary()
             return Unary(operator, right)
 
-        return self.__primary()
+        return self.__call()
+
+    def __call(self) -> Expr:
+        expr: Expr = self.__primary()
+
+        while True:
+            if self.__match([TokenType.LEFT_PAREN]):
+                expr = self.__finish_call(expr)
+            else:
+                break
+        return expr
+
+    def __finish_call(self, callee: Expr) -> Expr:
+        arguments: list[Expr] = []
+        paren: Optional[Token] = None
+
+        if not self.__check(TokenType.RIGHT_PAREN):
+            arguments.append(self.__expression())
+
+            while self.__match([TokenType.COMMA]):
+                arguments.append(self.__expression())
+        paren = self.__consume(TokenType.RIGHT_PAREN,
+                               "Expect ')' after arguments.")
+
+        if len(arguments) >= 255:
+            self.error_reporter.report_parser(
+                    paren.position,
+                    "Can't have more than 255 arguments."
+                )
+
+        return Call(callee, paren, arguments)
 
     def __primary(self) -> Expr:
         if self.__match([TokenType.FALSE]):

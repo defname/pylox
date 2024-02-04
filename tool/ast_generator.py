@@ -3,7 +3,7 @@ Provides the function generate_ast to generate a python source code
 file containing auto generated classes for the abstract syntax tree.
 """
 import sys
-
+from typing import Optional
 
 def generate_ast(base_class_name: str,
                  object_definitions: list[str],
@@ -61,11 +61,14 @@ class """+base_class_name+"""(ABC):
 
 def generate_type(base_class_name: str, object_definition: str) -> str:
     class_name: str = object_definition.split(":")[0].strip()
-    members: str = object_definition.split(":")[1].strip()
+    members: Optional[str] = None
+    if len(object_definition.split(":")) > 1:
+        members = object_definition.split(":")[1].strip()
 
     source = "\n@dataclass\n"
     source += f"class {class_name}({base_class_name}):\n"
-    source += generate_members(members)
+    if members is not None:
+        source += generate_members(members)
 
     source += "\n    def accept(self, visitor: " + base_class_name + ".Visitor):\n"
     source += f"        return visitor.visit_{class_name.lower()}_{base_class_name.lower()}(self)\n"
@@ -92,6 +95,7 @@ if __name__ == "__main__":
     BASE_CLASS = "Expr"
     OBJECT_DEFINITIONS = [
         "Binary: Expr left; Token operator; Expr right",
+        "Call: Expr callee; Token paren; list[Expr] arguments",
         "Unary: Token operator; Expr right",
         "Grouping: Expr expression",
         "Literal: LiteralType value",
@@ -109,7 +113,8 @@ if __name__ == "__main__":
         "Print: Expr expression",
         "While: Expr condition; Stmt body",
         "Var: Token name; Optional[Expr] initializer",
-        "Block: list[Stmt] statements"
+        "Block: list[Stmt] statements",
+        "Break"
     ]
     IMPORTS = ["Expr"]
     generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR, IMPORTS)
