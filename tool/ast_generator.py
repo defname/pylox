@@ -112,9 +112,11 @@ if __name__ == "__main__":
         "If: Expr condition; Stmt then_branch; Optional[Stmt] else_branch",
         "Print: Expr expression",
         "While: Expr condition; Stmt body",
+        "Function: Token name; list[Token] params; list[Stmt] body",
         "Var: Token name; Optional[Expr] initializer",
         "Block: list[Stmt] statements",
-        "Break"
+        "Break: Token keyword",
+        "Return: Token keyword; Optional[Expr] value"
     ]
     IMPORTS = ["Expr"]
     generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR, IMPORTS)

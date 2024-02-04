@@ -1,10 +1,14 @@
-var start = time();
-print start;
-for (var i=0; i < 1000; i=i+1) {
-    print time() - start;
-}
-var end = time();
-print end;
-var d = end - start;
 
-print "Laufzeit: " + d + "ms";
+fun getCounter(start) {
+    fun count() {
+        start = start + 1;
+        return start;
+    }
+    return count;
+}
+
+var c = getCounter(3);
+
+for (var i=0; i<4; i=i+1) {
+    print c();
+}

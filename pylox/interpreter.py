@@ -3,14 +3,25 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional
 from .expr import Expr, Literal, Grouping, Binary, Unary, Ternery, Variable, \
         Assign, Logical, Call
-from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break
+from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break, \
+        Function, Return
 from .lexer import TokenType, Token
-from .callable import LoxCallable
-from .environment import Environment, GlobalEnvironment, UNINITIALIZED
+from .callable import LoxCallable, LoxFunction
+from .environment import Environment, UNINITIALIZED
 from .errors import LoxRuntimeError
+from . import errors
+from . import builtin
 
 if TYPE_CHECKING:
     from .pylox import ErrorReporter
+
+
+class GlobalEnvironment(Environment):
+    def __init__(self):
+        super().__init__()
+
+        self.define(Token(None, "time", None),
+                    builtin.LoxTime())
 
 
 class Interpreter(Expr.Visitor, Stmt.Visitor):
@@ -36,9 +47,9 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
     def execute(self, stmt: Stmt):
         stmt.accept(self)
 
-    def __execute_block(self,
-                        statements: list[Stmt],
-                        environment: Environment):
+    def execute_block(self,
+                      statements: list[Stmt],
+                      environment: Environment):
         previous_environment: Environment = self.environment
 
         try:
@@ -96,7 +107,7 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
 
         if not isinstance(callee, LoxCallable):
             raise LoxRuntimeError(
-                    callee.paren,
+                    expr.paren,
                     "Can only call functions and classes.")
 
         function: LoxCallable = callee
@@ -231,9 +242,19 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             value = self.evaluate(stmt.initializer)
         self.environment.define(stmt.name, value)
 
+    def visit_function_stmt(self, stmt: Function):
+        function: LoxFunction = LoxFunction(stmt, self.environment)
+        self.environment.define(stmt.name, function)
+
     def visit_block_stmt(self, stmt: Block):
-        self.__execute_block(stmt.statements,
-                             Environment(self.environment))
+        self.execute_block(stmt.statements,
+                           Environment(self.environment))
 
     def visit_break_stmt(self, stmt: Break):
         self.break_loop = True
+
+    def visit_return_stmt(self, stmt: Return):
+        if stmt.value is None:
+            raise errors.LoxReturn(None)
+        value = self.evaluate(stmt.value)
+        raise errors.LoxReturn(value)

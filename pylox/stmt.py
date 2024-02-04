@@ -35,6 +35,10 @@ class Stmt(ABC):
             pass
 
         @abstractmethod
+        def visit_function_stmt(self, stmt: Function):
+            pass
+
+        @abstractmethod
         def visit_var_stmt(self, stmt: Var):
             pass
 
@@ -44,6 +48,10 @@ class Stmt(ABC):
 
         @abstractmethod
         def visit_break_stmt(self, stmt: Break):
+            pass
+
+        @abstractmethod
+        def visit_return_stmt(self, stmt: Return):
             pass
 
 
@@ -83,6 +91,16 @@ class While(Stmt):
 
 
 @dataclass
+class Function(Stmt):
+    name: Token
+    params: list[Token]
+    body: list[Stmt]
+
+    def accept(self, visitor: Stmt.Visitor):
+        return visitor.visit_function_stmt(self)
+
+
+@dataclass
 class Var(Stmt):
     name: Token
     initializer: Optional[Expr]
@@ -101,7 +119,17 @@ class Block(Stmt):
 
 @dataclass
 class Break(Stmt):
+    keyword: Token
 
     def accept(self, visitor: Stmt.Visitor):
         return visitor.visit_break_stmt(self)
+
+
+@dataclass
+class Return(Stmt):
+    keyword: Token
+    value: Optional[Expr]
+
+    def accept(self, visitor: Stmt.Visitor):
+        return visitor.visit_return_stmt(self)
 

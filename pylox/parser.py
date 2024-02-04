@@ -6,9 +6,14 @@ The grammar is defined by:
     program     -> declaration* EOF
 
     declaration -> varDecl
+                   | funDecl
                    | statement
 
     varDecl     -> "var" IDENTIFIER ("=" expression)? ";"
+    funDecl     -> "fun" function
+    function    -> IDENTIFIER "(" parameters? ")" block
+
+    parameters  -> IDENTIFIER ( "," IDENTIFIER )*
 
     statement   -> exprStmt
                    | forStmt
@@ -17,6 +22,7 @@ The grammar is defined by:
                    | whileStmt
                    | block
                    | breakStmt
+                   | returnStmt
 
     exprStmt    -> expression ";"
     forStmt     -> "for" "(" (varDecl | exprStmt | ";")
@@ -27,6 +33,7 @@ The grammar is defined by:
     whileStmt   -> "while" "(" expression ")" statement
     block       -> "{" declaration* "}"
     breakStmt   -> "break" ";"
+    returnStmt  -> "return" expression? ";"
 
     expression  -> assignment
     assignment  -> IDENTIFIER "=" assignment
@@ -52,7 +59,8 @@ from typing import Callable, TYPE_CHECKING, Optional
 from .lexer import Token, TokenType
 from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery, Variable, \
         Assign, Logical, Call
-from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break
+from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break, \
+        Function, Return
 
 if TYPE_CHECKING:
     from .pylox import ErrorReporter
@@ -135,6 +143,8 @@ class Parser:
         try:
             if self.__match([TokenType.VAR]):
                 return self.__var_decl()
+            if self.__match([TokenType.FUN]):
+                return self.__function("function")
             return self.__statement()
         except ParseError:
             self.__synchronize()
@@ -142,7 +152,7 @@ class Parser:
 
     def __var_decl(self) -> Stmt:
         var_name = self.__consume(TokenType.IDENTIFIER,
-                                  "Expect variable name")
+                                  "Expect variable name.")
         initializer: Optional[Expr] = None
         if self.__match([TokenType.EQUAL]):
             initializer = self.__expression()
@@ -150,6 +160,36 @@ class Parser:
         self.__consume(TokenType.SEMICOLON,
                        "Expect ';' after variable declaration.")
         return Var(var_name, initializer)
+
+    def __function(self, kind: str) -> Stmt:
+        """
+        Helper function to produce function statement.
+        Used for function or class methods.
+        :param kind: 'function' or 'method'
+        """
+        fun_name = self.__consume(TokenType.IDENTIFIER,
+                                  "Expect " + kind + " name.")
+        self.__consume(TokenType.LEFT_PAREN,
+                       "Expect '(' after " + kind + " name.")
+        parameters: list[Token] = []
+
+        if not self.__check(TokenType.RIGHT_PAREN):
+            parameters.append(self.__consume(
+                    TokenType.IDENTIFIER,
+                    "Expect parameter name.")
+                )
+            if len(parameters) > 255:
+                self.__error(self.__peek(),
+                             "Can't have more than 255 parameters")
+        self.__consume(TokenType.RIGHT_PAREN,
+                       "Expect ')' after parameter list.")
+
+        self.__consume(TokenType.LEFT_BRACE,
+                       "Expect '{' before " + kind + " body.")
+
+        body: list[Stmt] = self.__block()
+
+        return Function(fun_name, parameters, body)
 
     def __statement(self) -> Stmt:
         if self.__match([TokenType.IF]):
@@ -168,10 +208,10 @@ class Parser:
             return Block(self.__block())
 
         if self.__match([TokenType.BREAK]):
-            stmt: Optional[Stmt] = self.__break_statement()
-            if stmt is not None:
-                return stmt
-            # otherwise just continue
+            return self.__break_statement()
+
+        if self.__match([TokenType.RETURN]):
+            return self.__return_statement()
 
         return self.__expression_statement()
 
@@ -264,9 +304,19 @@ class Parser:
         if self.nested_loops == 0:
             raise self.__error(self.__previous(),
                                "'break' is only allowed inside loops")
+        keyword: Token = self.__previous()
         self.__consume(TokenType.SEMICOLON,
                        "Expect ';' after 'break'.")
-        return Break()
+        return Break(keyword)
+
+    def __return_statement(self) -> Stmt:
+        keyword: Token = self.__previous()
+        value: Optional[Expr] = None
+        if not self.__check(TokenType.SEMICOLON):
+            value = self.__expression()
+        self.__consume(TokenType.SEMICOLON,
+                       "Expect ';' after 'return'")
+        return Return(keyword, value)
 
     ###########################################################################
     # Expression productions
@@ -395,14 +445,12 @@ class Parser:
 
             while self.__match([TokenType.COMMA]):
                 arguments.append(self.__expression())
+
+                if len(arguments) > 255:
+                    self.__error(self.__peek(),
+                                 "Can't have more than 255 arguments.")
         paren = self.__consume(TokenType.RIGHT_PAREN,
                                "Expect ')' after arguments.")
-
-        if len(arguments) >= 255:
-            self.error_reporter.report_parser(
-                    paren.position,
-                    "Can't have more than 255 arguments."
-                )
 
         return Call(callee, paren, arguments)
 
