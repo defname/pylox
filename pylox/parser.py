@@ -262,11 +262,13 @@ class Parser:
         self.__consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.")
         condition: Expr = self.__expression()
         self.__consume(TokenType.RIGHT_PAREN, "Expect ')' after 'while'.")
-        self.nested_loops += 1
-        body: Stmt = self.__statement()
-        self.nested_loops -= 1
+        try:
+            self.nested_loops += 1
+            body: Stmt = self.__statement()
 
-        return While(condition, body)
+            return While(condition, body)
+        finally:
+            self.nested_loops -= 1
 
     def __for_statement(self) -> Stmt:
         self.__consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.")
@@ -289,23 +291,25 @@ class Parser:
         self.__consume(TokenType.RIGHT_PAREN,
                        "Expect ')' after for clause.")
 
-        self.nested_loops += 1
-        body: Stmt = self.__statement()
-        self.nested_loops -= 1
+        try:
+            self.nested_loops += 1
+            body: Stmt = self.__statement()
 
-        # Build while loop
-        if increment is not None:
-            body = Block([body, Expression(increment)])
+            # Build while loop
+            if increment is not None:
+                body = Block([body, Expression(increment)])
 
-        if condition is None:
-            condition = Literal(True)
+            if condition is None:
+                condition = Literal(True)
 
-        body = While(condition, body)
+            body = While(condition, body)
 
-        if initializer is not None:
-            body = Block([initializer, body])
+            if initializer is not None:
+                body = Block([initializer, body])
 
-        return body
+            return body
+        finally:
+            self.nested_loops -= 1
 
     def __print_statement(self) -> Stmt:
         value: Expr = self.__expression()

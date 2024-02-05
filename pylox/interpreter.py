@@ -8,7 +8,6 @@ from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break, \
 from .lexer import TokenType, Token
 from .callable import LoxCallable, LoxFunction
 from .environment import Environment, UNINITIALIZED
-from .errors import LoxRuntimeError
 from . import errors
 from . import builtin
 
@@ -28,19 +27,17 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
     error_reporter: ErrorReporter
     global_environment: Environment
     environment: Environment
-    break_loop: bool
 
     def __init__(self, error_reporter: ErrorReporter):
         self.error_reporter = error_reporter
         self.global_environment = GlobalEnvironment()
         self.environment = self.global_environment
-        self.break_loop = False
 
     def interpret(self, statements: list[Stmt]):
         try:
             for stmt in statements:
                 self.execute(stmt)
-        except LoxRuntimeError as error:
+        except errors.LoxRuntimeError as error:
             self.error_reporter.report_runtime(error.token.position,
                                                error.message)
 
@@ -56,8 +53,6 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             self.environment = environment
 
             for stmnt in statements:
-                if self.break_loop:
-                    break
                 self.execute(stmnt)
         finally:
             self.environment = previous_environment
@@ -70,7 +65,7 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
     def __check_number_operand(self, operator: Token, operand: object):
         if isinstance(operand, float):
             return
-        raise LoxRuntimeError(operator, "Operand must be a number.")
+        raise errors.LoxRuntimeError(operator, "Operand must be a number.")
 
     def __check_number_operands(self,
                                 operator: Token,
@@ -78,7 +73,7 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                                 right: object):
         if isinstance(left, float) and isinstance(right, float):
             return
-        raise LoxRuntimeError(operator, "Both operands mus be numbers.")
+        raise errors.LoxRuntimeError(operator, "Both operands mus be numbers.")
 
     def __is_truthy(self, operand: object):
         if operand is None or (isinstance(operand, bool) and not operand):
@@ -106,13 +101,13 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             arguments.append(self.evaluate(arg))
 
         if not isinstance(callee, LoxCallable):
-            raise LoxRuntimeError(
+            raise errors.LoxRuntimeError(
                     expr.paren,
                     "Can only call functions and classes.")
 
         function: LoxCallable = callee
         if len(arguments) != function.arity():
-            raise LoxRuntimeError(
+            raise errors.LoxRuntimeError(
                     expr.paren,
                     "Expected " + str(function.arity())
                     + " arguments, but got "
@@ -167,17 +162,17 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                     try:
                         return str(left) + right
                     except ValueError:
-                        raise LoxRuntimeError(
+                        raise errors.LoxRuntimeError(
                                 expr.operator,
                                 "Cannot convert '"+str(left)+"' to string.")
                 if isinstance(left, str) and isinstance(right, float):
                     try:
                         return left + str(right)
                     except ValueError:
-                        raise LoxRuntimeError(
+                        raise errors.LoxRuntimeError(
                                 expr.operator,
                                 "Cannot convert '"+str(right)+"' to str.")
-                raise LoxRuntimeError(
+                raise errors.LoxRuntimeError(
                         expr.operator,
                         "Both operands have to be strings or numbers"
                     )
@@ -190,8 +185,9 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             case TokenType.SLASH:
                 self.__check_number_operands(expr.operator, left, right)
                 if right == 0:
-                    raise LoxRuntimeError(expr.operator,
-                                          "Do not divide by zero!")
+                    raise errors.LoxRuntimeError(
+                            expr.operator,
+                            "Do not divide by zero!")
                 return float(left) / float(right)
 
     def visit_ternery_expr(self, expr: Ternery):
@@ -231,10 +227,11 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             self.execute(stmt.else_branch)
 
     def visit_while_stmt(self, stmt: While):
-        while not self.break_loop \
-                and self.__is_truthy(self.evaluate(stmt.condition)):
-            self.execute(stmt.body)
-        self.break_loop = False
+        try:
+            while self.__is_truthy(self.evaluate(stmt.condition)):
+                self.execute(stmt.body)
+        except errors.LoxBreak:
+            pass
 
     def visit_print_stmt(self, stmt: Print):
         print(self.stringify(self.evaluate(stmt.expression)))
@@ -257,7 +254,7 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                            Environment(self.environment))
 
     def visit_break_stmt(self, stmt: Break):
-        self.break_loop = True
+        raise errors.LoxBreak()
 
     def visit_return_stmt(self, stmt: Return):
         if stmt.value is None:

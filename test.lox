@@ -1,7 +1,10 @@
-var add = fun(a, b) {
-    var c = a + b;
-    return c;
-};
-
-print add;
-print add(3, 4);
+for (var i=0; i<10; i = i+1) {
+    print i;
+    for (var j=0; j<10; j = j+1) {
+        print i + " -- " + j;
+        if (j > 2) {
+            break;
+        }
+    }
+    if (i > 4) break;
+}
