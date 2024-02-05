@@ -1,14 +1,9 @@
-
-fun getCounter(start) {
-    fun count() {
-        start = start + 1;
-        return start;
-    }
-    return count;
+fun test(a) {
+    print a;
+    var a = 123;
+    print a;
+    var a = 111;
+    print a;
 }
 
-var c = getCounter(3);
-
-for (var i=0; i<4; i=i+1) {
-    print c();
-}
+test(321);
