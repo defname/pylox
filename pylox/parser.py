@@ -58,9 +58,9 @@ from __future__ import annotations
 from typing import Callable, TYPE_CHECKING, Optional
 from .lexer import Token, TokenType
 from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery, Variable, \
-        Assign, Logical, Call
+        Assign, Logical, Call, Function
 from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break, \
-        Function, Return
+        FunDef, Return
 
 if TYPE_CHECKING:
     from .pylox import ErrorReporter
@@ -129,6 +129,14 @@ class Parser:
             return False
         return self.__peek().type == typ
 
+    def __check_next(self, typ: TokenType):
+        """Check if the next token has type 'typ'"""
+        if self.__is_at_end():
+            return False
+        if self.tokens[self.current+1].type == TokenType.EOF:
+            return False
+        return self.tokens[self.current+1].type == typ
+
     def __match(self, types: list[TokenType]):
         """Check if current tokens type if one of types"""
         for typ in types:
@@ -141,9 +149,15 @@ class Parser:
     # Statement productions
     def __declaration(self) -> Optional[Stmt]:
         try:
+            # Variable declaration
             if self.__match([TokenType.VAR]):
                 return self.__var_decl()
-            if self.__match([TokenType.FUN]):
+            # Function declaration
+            if self.__check(TokenType.FUN) \
+                    and self.__check_next(TokenType.IDENTIFIER):
+                # since token type is already checked consume will never
+                # raise an error, so msg is irrelevant
+                self.__consume(TokenType.FUN, "")
                 return self.__function("function")
             return self.__statement()
         except ParseError:
@@ -163,18 +177,32 @@ class Parser:
 
     def __function(self, kind: str) -> Stmt:
         """
-        Helper function to produce function statement.
+        Helper function to produce function definition statement.
         Used for function or class methods.
         :param kind: 'function' or 'method'
         """
         fun_name = self.__consume(TokenType.IDENTIFIER,
                                   "Expect " + kind + " name.")
+
+        function: Function = self.__function_body(kind)
+
+        return FunDef(fun_name, function)
+
+    def __function_body(self, kind: str) -> Function:
+        """
+        Helper function to produce the function body.
+        """
         self.__consume(TokenType.LEFT_PAREN,
                        "Expect '(' after " + kind + " name.")
         parameters: list[Token] = []
 
         if not self.__check(TokenType.RIGHT_PAREN):
             parameters.append(self.__consume(
+                    TokenType.IDENTIFIER,
+                    "Expect parameter name.")
+                )
+            while self.__match([TokenType.COMMA]):
+                parameters.append(self.__consume(
                     TokenType.IDENTIFIER,
                     "Expect parameter name.")
                 )
@@ -189,7 +217,7 @@ class Parser:
 
         body: list[Stmt] = self.__block()
 
-        return Function(fun_name, parameters, body)
+        return Function(parameters, body)
 
     def __statement(self) -> Stmt:
         if self.__match([TokenType.IF]):
@@ -474,6 +502,9 @@ class Parser:
 
         if self.__match([TokenType.IDENTIFIER]):
             return Variable(self.__previous())
+
+        if self.__match([TokenType.FUN]):
+            return self.__function_body("function")
 
         # check for a faulty positioned binary operator
         if self.__match(BINARY_OPERATOR_TYPES):

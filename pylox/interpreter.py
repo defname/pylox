@@ -2,9 +2,9 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional
 from .expr import Expr, Literal, Grouping, Binary, Unary, Ternery, Variable, \
-        Assign, Logical, Call
+        Assign, Logical, Call, Function
 from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break, \
-        Function, Return
+        FunDef, Return
 from .lexer import TokenType, Token
 from .callable import LoxCallable, LoxFunction
 from .environment import Environment, UNINITIALIZED
@@ -120,6 +120,9 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                 )
 
         return function.call(self, arguments)
+
+    def visit_function_expr(self, expr: Function):
+        return LoxFunction(None, expr, self.environment)
 
     def visit_unary_expr(self, expr: Unary):
         right: Any = self.evaluate(expr.right)
@@ -242,8 +245,11 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             value = self.evaluate(stmt.initializer)
         self.environment.define(stmt.name, value)
 
-    def visit_function_stmt(self, stmt: Function):
-        function: LoxFunction = LoxFunction(stmt, self.environment)
+    def visit_fundef_stmt(self, stmt: FunDef):
+        function: LoxFunction = LoxFunction(
+                stmt.name.lexeme,
+                stmt.function,
+                self.environment)
         self.environment.define(stmt.name, function)
 
     def visit_block_stmt(self, stmt: Block):

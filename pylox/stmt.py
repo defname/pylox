@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional
 from .lexer import Token, LiteralType
-from .expr import Expr
+from . import expr
 
 
 class Stmt(ABC):
@@ -35,7 +35,7 @@ class Stmt(ABC):
             pass
 
         @abstractmethod
-        def visit_function_stmt(self, stmt: Function):
+        def visit_fundef_stmt(self, stmt: FunDef):
             pass
 
         @abstractmethod
@@ -57,7 +57,7 @@ class Stmt(ABC):
 
 @dataclass
 class Expression(Stmt):
-    expression: Expr
+    expression: expr.Expr
 
     def accept(self, visitor: Stmt.Visitor):
         return visitor.visit_expression_stmt(self)
@@ -65,7 +65,7 @@ class Expression(Stmt):
 
 @dataclass
 class If(Stmt):
-    condition: Expr
+    condition: expr.Expr
     then_branch: Stmt
     else_branch: Optional[Stmt]
 
@@ -75,7 +75,7 @@ class If(Stmt):
 
 @dataclass
 class Print(Stmt):
-    expression: Expr
+    expression: expr.Expr
 
     def accept(self, visitor: Stmt.Visitor):
         return visitor.visit_print_stmt(self)
@@ -83,7 +83,7 @@ class Print(Stmt):
 
 @dataclass
 class While(Stmt):
-    condition: Expr
+    condition: expr.Expr
     body: Stmt
 
     def accept(self, visitor: Stmt.Visitor):
@@ -91,19 +91,18 @@ class While(Stmt):
 
 
 @dataclass
-class Function(Stmt):
+class FunDef(Stmt):
     name: Token
-    params: list[Token]
-    body: list[Stmt]
+    function: expr.Function
 
     def accept(self, visitor: Stmt.Visitor):
-        return visitor.visit_function_stmt(self)
+        return visitor.visit_fundef_stmt(self)
 
 
 @dataclass
 class Var(Stmt):
     name: Token
-    initializer: Optional[Expr]
+    initializer: Optional[expr.Expr]
 
     def accept(self, visitor: Stmt.Visitor):
         return visitor.visit_var_stmt(self)
@@ -128,7 +127,7 @@ class Break(Stmt):
 @dataclass
 class Return(Stmt):
     keyword: Token
-    value: Optional[Expr]
+    value: Optional[expr.Expr]
 
     def accept(self, visitor: Stmt.Visitor):
         return visitor.visit_return_stmt(self)

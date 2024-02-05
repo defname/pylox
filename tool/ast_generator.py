@@ -32,7 +32,7 @@ from typing import Optional
 from .lexer import Token, LiteralType
 """
     for imp in imports:
-        source += f"from .{imp.lower()} import {imp}\n"
+        source += imp + "\n"
     source += """
 
 class """+base_class_name+"""(ABC):
@@ -102,21 +102,23 @@ if __name__ == "__main__":
         "Ternery: Expr condition; Expr then_expr; Expr else_expr",
         "Variable: Token name",
         "Assign: Token name; Expr value",
-        "Logical: Expr left; Token operator; Expr right"
+        "Logical: Expr left; Token operator; Expr right",
+        "Function: list[Token] params; list[stmt.Stmt] body"
     ]
-    generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR)
+    IMPORTS = ["from . import stmt"]
+    generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR, IMPORTS)
 
     BASE_CLASS = "Stmt"
     OBJECT_DEFINITIONS = [
-        "Expression: Expr expression",
-        "If: Expr condition; Stmt then_branch; Optional[Stmt] else_branch",
-        "Print: Expr expression",
-        "While: Expr condition; Stmt body",
-        "Function: Token name; list[Token] params; list[Stmt] body",
-        "Var: Token name; Optional[Expr] initializer",
+        "Expression: expr.Expr expression",
+        "If: expr.Expr condition; Stmt then_branch; Optional[Stmt] else_branch",
+        "Print: expr.Expr expression",
+        "While: expr.Expr condition; Stmt body",
+        "FunDef: Token name; expr.Function function",
+        "Var: Token name; Optional[expr.Expr] initializer",
         "Block: list[Stmt] statements",
         "Break: Token keyword",
-        "Return: Token keyword; Optional[Expr] value"
+        "Return: Token keyword; Optional[expr.Expr] value"
     ]
-    IMPORTS = ["Expr"]
+    IMPORTS = ["from . import expr"]
     generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR, IMPORTS)

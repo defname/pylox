@@ -1,9 +1,7 @@
-fun test(a) {
-    print a;
-    var a = 123;
-    print a;
-    var a = 111;
-    print a;
-}
+var add = fun(a, b) {
+    var c = a + b;
+    return c;
+};
 
-test(321);
+print add;
+print add(3, 4);

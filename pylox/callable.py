@@ -1,12 +1,12 @@
 from __future__ import annotations
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Optional
 from abc import ABC, abstractmethod
 from . import environment
 from . import errors
 
 if TYPE_CHECKING:
     from .interpreter import Interpreter
-    from .stmt import Function
+    from .expr import Function
     from .lexer import Token
     from .environment import Environment
 
@@ -26,11 +26,16 @@ class LoxCallable(ABC):
 
 
 class LoxFunction(LoxCallable):
+    name: Optional[str]
     declaration: Function
     closure: Environment
     __arity: int
 
-    def __init__(self, declaration: Function, closure: Environment):
+    def __init__(self,
+                 name: Optional[str],
+                 declaration: Function,
+                 closure: Environment):
+        self.name = name
         self.declaration = declaration
         self.closure = closure
         self.__arity = len(declaration.params)
@@ -50,4 +55,6 @@ class LoxFunction(LoxCallable):
         return self.__arity
 
     def __str__(self):
-        return "<fun " + self.declaration.name.lexeme + ">"
+        if self.name is not None:
+            return "<fun " + self.name + ">"
+        return "<fun>"

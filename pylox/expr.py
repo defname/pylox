@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional
 from .lexer import Token, LiteralType
+from . import stmt
 
 
 class Expr(ABC):
@@ -51,6 +52,10 @@ class Expr(ABC):
 
         @abstractmethod
         def visit_logical_expr(self, expr: Logical):
+            pass
+
+        @abstractmethod
+        def visit_function_expr(self, expr: Function):
             pass
 
 
@@ -134,4 +139,13 @@ class Logical(Expr):
 
     def accept(self, visitor: Expr.Visitor):
         return visitor.visit_logical_expr(self)
+
+
+@dataclass
+class Function(Expr):
+    params: list[Token]
+    body: list[stmt.Stmt]
+
+    def accept(self, visitor: Expr.Visitor):
+        return visitor.visit_function_expr(self)
 
