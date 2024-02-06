@@ -55,7 +55,6 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
             if name.lexeme in scope:
                 self.interpreter.resolve(var, i)
                 return
-        print("Should not happen")
 
     def __resolve_function(self, fun: expr.Function):
         self.__begin_scope()
@@ -99,6 +98,9 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
 
     def visit_function_expr(self, fun: expr.Function):
         self.__begin_scope()
+        for param in fun.params:
+            self.__declare(param)
+            self.__define(param)
         self.resolve_stmt_list(fun.body)
         self.__end_scope()
 
@@ -112,6 +114,7 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
     def visit_call_expr(self, call: expr.Call):
         for arg in call.arguments:
             self.resolve_expr(arg)
+        self.resolve_expr(call.callee)
 
     def visit_expression_stmt(self, expr_stmt: stmt.Expression):
         self.resolve_expr(expr_stmt.expression)
