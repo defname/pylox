@@ -16,6 +16,7 @@ class VarState:
     token: Token
     defined: bool
     used: bool
+    local_index: int
 
 
 class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
@@ -63,7 +64,8 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
                     name.position,
                     "There is already a variable with name '" + name.lexeme
                     + "' in this scope.")
-        scope[name.lexeme] = VarState(name, False, False)
+        idx = len(scope)
+        scope[name.lexeme] = VarState(name, False, False, idx)
 
     def __define(self, name: Token):
         """Mark variable as ready to use"""
@@ -74,7 +76,10 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
     def __resolve_local(self, var: expr.Expr, name: Token):
         for i, scope in enumerate(reversed(self.scopes)):
             if name.lexeme in scope:
-                self.interpreter.resolve(var, i)
+                self.interpreter.resolve(
+                        var,
+                        i,
+                        scope[name.lexeme].local_index)
                 scope[name.lexeme].used = True
                 return
 

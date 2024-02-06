@@ -1,6 +1,6 @@
 """Implements Interpreter"""
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Tuple
 from .expr import Expr, Literal, Grouping, Binary, Unary, Ternery, Variable, \
         Assign, Logical, Call, Function
 from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break, \
@@ -15,24 +15,56 @@ if TYPE_CHECKING:
     from .pylox import ErrorReporter
 
 
-class GlobalEnvironment(Environment):
-    def __init__(self):
-        super().__init__()
+class GlobalEnvironment:
+    values: dict[str, Any]
 
+    def __init__(self):
+        self.values = {}
         self.define(Token(None, "time", None),
                     builtin.LoxTime())
+
+    def define(self, name: Token, value: Any = UNINITIALIZED):
+        self.values[name.lexeme] = value
+
+    def get(self, name: Token):
+        """
+        Return the value of the variable with 'name' if it is defined.
+        Raise RuntimeError otherwise.
+        """
+        if name.lexeme in self.values:
+            if self.values[name.lexeme] is UNINITIALIZED:
+                raise errors.LoxRuntimeError(
+                        name,
+                        "Uninitialized variable '" + name.lexeme + "'.")
+            return self.values[name.lexeme]
+        raise errors.LoxRuntimeError(
+                name,
+                "Undefined variable '" + name.lexeme + "'.")
+
+    def assign(self, name: Token, value: Any):
+        """
+        Assign a value to a variable.
+        Raise RuntimeError if the variable doesn't exist.
+        """
+        if name.lexeme in self.values:
+            self.values[name.lexeme] = value
+            return
+
+        raise errors.LoxRuntimeError(
+                name,
+                "Undefined variable '" + name.lexeme + "'.")
 
 
 class Interpreter(Expr.Visitor, Stmt.Visitor):
     error_reporter: ErrorReporter
-    global_environment: Environment
-    environment: Environment
-    local_definitions: dict[int, int]
+    global_environment: GlobalEnvironment
+    environment: Optional[Environment]
+    local_definitions: dict[int, Tuple[int, int]]  # Tuple[depth, index]
 
     def __init__(self, error_reporter: ErrorReporter):
         self.error_reporter = error_reporter
         self.global_environment = GlobalEnvironment()
-        self.environment = self.global_environment
+        self.environment = None
         self.local_definitions = {}
 
     def interpret(self, statements: list[Stmt]):
@@ -49,7 +81,7 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
     def execute_block(self,
                       statements: list[Stmt],
                       environment: Environment):
-        previous_environment: Environment = self.environment
+        previous_environment: Optional[Environment] = self.environment
 
         try:
             self.environment = environment
@@ -59,13 +91,15 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
         finally:
             self.environment = previous_environment
 
-    def resolve(self, expr: Expr, depth: int):
-        self.local_definitions[id(expr)] = depth
+    def resolve(self, expr: Expr, depth: int, index: int):
+        self.local_definitions[id(expr)] = (depth, index)
 
     def __lookup_variable(self, name: Token, expr: Expr):
-        distance: Optional[int] = self.local_definitions.get(id(expr), None)
-        if distance is not None:
-            return self.environment.get_at(distance, name.lexeme)
+        distance, index = self.local_definitions.get(id(expr), (None, None))
+        if distance is not None \
+                and index is not None \
+                and self.environment is not None:
+            return self.environment.get_at(distance, index, name.lexeme)
         return self.global_environment.get(name)
 
     def stringify(self, value: Any):
@@ -212,9 +246,11 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
 
     def visit_assign_expr(self, expr: Assign):
         value = self.evaluate(expr.value)
-        distance: Optional[int] = self.local_definitions.get(id(expr), None)
-        if distance is not None:
-            self.environment.assign_at(distance, expr.name, value)
+        distance, index = self.local_definitions.get(id(expr), (None, None))
+        if distance is not None \
+                and index is not None \
+                and self.environment is not None:
+            self.environment.assign_at(distance, index, expr.name, value)
         else:
             self.global_environment.assign(expr.name, value)
         return value
@@ -255,14 +291,20 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
         value = UNINITIALIZED
         if stmt.initializer is not None:
             value = self.evaluate(stmt.initializer)
-        self.environment.define(stmt.name, value)
+        if self.environment is not None:
+            self.environment.define(stmt.name, value)
+        else:
+            self.global_environment.define(stmt.name, value)
 
     def visit_fundef_stmt(self, stmt: FunDef):
         function: LoxFunction = LoxFunction(
                 stmt.name.lexeme,
                 stmt.function,
                 self.environment)
-        self.environment.define(stmt.name, function)
+        if self.environment is not None:
+            self.environment.define(stmt.name, function)
+        else:
+            self.global_environment.define(stmt.name, function)
 
     def visit_block_stmt(self, stmt: Block):
         self.execute_block(stmt.statements,

@@ -13,38 +13,19 @@ UNINITIALIZED = object()
 
 class Environment:
     """An environment holding variables and their values"""
-    values: dict[str, Any]
+    values_array: list[Any]
     enclosing: Optional[Environment]
 
     def __init__(self, enclosing: Optional[Environment] = None):
-        self.values = {}
+        self.values_array = []
         self.enclosing = enclosing
 
     def define(self, name: Token, value: Any = UNINITIALIZED):
         """Define a new variable and initialize it with 'value'"""
-        self.values[name.lexeme] = value
+        self.values_array.append(value)
 
-    def get(self, name: Token):
-        """
-        Return the value of the variable with 'name' if it is defined.
-        Raise RuntimeError otherwise.
-        """
-        if name.lexeme in self.values:
-            if self.values[name.lexeme] is UNINITIALIZED:
-                raise errors.LoxRuntimeError(
-                        name,
-                        "Uninitialized variable '" + name.lexeme + "'.")
-            return self.values[name.lexeme]
-
-        if self.enclosing is not None:
-            return self.enclosing.get(name)
-
-        raise errors.LoxRuntimeError(
-                name,
-                "Undefined variable '" + name.lexeme + "'.")
-
-    def get_at(self, distance: int, name: str):
-        return self.ancestor(distance).values[name]
+    def get_at(self, distance: int, index: int, name: str):
+        return self.ancestor(distance).values_array[index]
 
     def ancestor(self, distance: int) -> Environment:
         environment: Environment = self
@@ -59,22 +40,5 @@ class Environment:
 
         return environment
 
-    def assign(self, name: Token, value: Any):
-        """
-        Assign a value to a variable.
-        Raise RuntimeError if the variable doesn't exist.
-        """
-        if name.lexeme in self.values:
-            self.values[name.lexeme] = value
-            return
-
-        if self.enclosing is not None:
-            self.enclosing.assign(name, value)
-            return
-
-        raise errors.LoxRuntimeError(
-                name,
-                "Undefined variable '" + name.lexeme + "'.")
-
-    def assign_at(self, distance: int, name: Token, value: Any):
-        self.ancestor(distance).values[name.lexeme] = value
+    def assign_at(self, distance: int, index: int, name: Token, value: Any):
+        self.ancestor(distance).values_array[index] = value

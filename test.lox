@@ -1,7 +1,10 @@
 var i=0;
 {
     var i=1;
-    var i=2;
+    var j = i;
+    {
+        print j;
+    }
     print i;
 }
 print i;

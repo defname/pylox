@@ -28,13 +28,13 @@ class LoxCallable(ABC):
 class LoxFunction(LoxCallable):
     name: Optional[str]
     declaration: Function
-    closure: Environment
+    closure: Optional[Environment]
     __arity: int
 
     def __init__(self,
                  name: Optional[str],
                  declaration: Function,
-                 closure: Environment):
+                 closure: Optional[Environment]):
         self.name = name
         self.declaration = declaration
         self.closure = closure
