@@ -10,6 +10,7 @@ from .parser import Parser
 from .ast_printer import AstPrinter
 from .stmt import Stmt
 from .interpreter import Interpreter
+from .resolver import Resolver
 
 
 class ErrorReporter:
@@ -66,6 +67,9 @@ class ErrorReporter:
     def report_runtime(self, position: SourcePosition, message: str):
         self.had_runtime_error = True
         self.__report(position, "Runtime", message)
+
+    def report_resolver(self, position: SourcePosition, message: str):
+        self.__report(position, "Resolver", message)
 
 
 class Prompt(Cmd):
@@ -131,6 +135,9 @@ class PyLox:
 
         parser = Parser(lexer.tokens, self.error_reporter)
         statements: list[Stmt] = parser.parse()
+
+        resolver = Resolver(self.interpreter, self.error_reporter)
+        resolver.resolve_stmt_list(statements)
 
         if self.error_reporter.had_error:
             return 65

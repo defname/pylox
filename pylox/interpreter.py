@@ -27,11 +27,13 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
     error_reporter: ErrorReporter
     global_environment: Environment
     environment: Environment
+    local_definitions: dict[int, int]
 
     def __init__(self, error_reporter: ErrorReporter):
         self.error_reporter = error_reporter
         self.global_environment = GlobalEnvironment()
         self.environment = self.global_environment
+        self.local_definitions = {}
 
     def interpret(self, statements: list[Stmt]):
         try:
@@ -56,6 +58,15 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                 self.execute(stmnt)
         finally:
             self.environment = previous_environment
+
+    def resolve(self, expr: Expr, depth: int):
+        self.local_definitions[id(expr)] = depth
+
+    def __lookup_variable(self, name: Token, expr: Expr):
+        distance: Optional[int] = self.local_definitions.get(id(expr), None)
+        if distance is not None:
+            return self.environment.get_at(distance, name.lexeme)
+        return self.global_environment.get(name)
 
     def stringify(self, value: Any):
         if value is None:
@@ -197,11 +208,15 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
         return self.evaluate(expr.else_expr)
 
     def visit_variable_expr(self, expr: Variable):
-        return self.environment.get(expr.name)
+        return self.__lookup_variable(expr.name, expr)
 
     def visit_assign_expr(self, expr: Assign):
         value = self.evaluate(expr.value)
-        self.environment.assign(expr.name, value)
+        distance: Optional[int] = self.local_definitions.get(id(expr), None)
+        if distance is not None:
+            self.environment.assign_at(distance, expr.name, value)
+        else:
+            self.global_environment.assign(expr.name, value)
         return value
 
     def visit_logical_expr(self, expr: Logical):

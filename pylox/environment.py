@@ -1,9 +1,9 @@
 from __future__ import annotations
 from typing import Any, Optional, TYPE_CHECKING
 from . import errors
+from . import lexer
 
 if TYPE_CHECKING:
-    from . import lexer
     from .lexer import Token
     from .errors import LoxRuntimeError
 
@@ -39,7 +39,25 @@ class Environment:
         if self.enclosing is not None:
             return self.enclosing.get(name)
 
-        raise RuntimeError(name, "Undefined variable '" + name.lexeme + "'.")
+        raise errors.LoxRuntimeError(
+                name,
+                "Undefined variable '" + name.lexeme + "'.")
+
+    def get_at(self, distance: int, name: str):
+        return self.ancestor(distance).values[name]
+
+    def ancestor(self, distance: int) -> Environment:
+        environment: Environment = self
+        for _ in range(distance):
+            if environment.enclosing is None:
+                raise errors.LoxRuntimeError(
+                        lexer.Token(lexer.TokenType.NIL,
+                                    "",
+                                    lexer.SourcePosition()),
+                        "This should not happen!! (inside Environment)")
+            environment = environment.enclosing
+
+        return environment
 
     def assign(self, name: Token, value: Any):
         """
@@ -58,5 +76,5 @@ class Environment:
                 name,
                 "Undefined variable '" + name.lexeme + "'.")
 
-
-
+    def assign_at(self, distance: int, name: Token, value: Any):
+        self.ancestor(distance).values[name.lexeme] = value
