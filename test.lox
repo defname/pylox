@@ -1,11 +1,7 @@
-fun f() {
-    var i=0;
-    fun g() {
-        print i;
-    }
-    i = "FOO";
-    return g;
+var i=0;
+{
+    var i=1;
+    var i=2;
+    print i;
 }
-var i = "BLU";
-
-f()();
+print i;

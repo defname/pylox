@@ -1,5 +1,6 @@
 from __future__ import annotations
 from collections import deque
+from dataclasses import dataclass
 from typing import Deque, TYPE_CHECKING
 from . import stmt
 from . import expr
@@ -10,9 +11,16 @@ if TYPE_CHECKING:
     from .pylox import ErrorReporter
 
 
+@dataclass
+class VarState:
+    token: Token
+    defined: bool
+    used: bool
+
+
 class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
     interpreter: intpr.Interpreter
-    scopes: Deque[dict[str, bool]]
+    scopes: Deque[dict[str, VarState]]
     error_reporter: ErrorReporter
 
     def __init__(self,
@@ -36,24 +44,38 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
         self.scopes.append({})
 
     def __end_scope(self):
-        self.scopes.pop()
+        scope: dict[str, VarState] = self.scopes.pop()
+        for name, state in scope.items():
+            if not state.used:
+                self.error_reporter.report_resolver(
+                        state.token.position,
+                        "Local variable '" + name
+                        + "' defined but never used.")
 
     def __declare(self, name: Token):
         """Add variable to current scope and mark it as not ready to use"""
         if len(self.scopes) == 0:
             return
-        self.scopes[-1][name.lexeme] = False
+
+        scope = self.scopes[-1]
+        if name.lexeme in scope:
+            self.error_reporter.report_resolver(
+                    name.position,
+                    "There is already a variable with name '" + name.lexeme
+                    + "' in this scope.")
+        scope[name.lexeme] = VarState(name, False, False)
 
     def __define(self, name: Token):
         """Mark variable as ready to use"""
         if len(self.scopes) == 0:
             return
-        self.scopes[-1][name.lexeme] = True
+        self.scopes[-1][name.lexeme].defined = True
 
     def __resolve_local(self, var: expr.Expr, name: Token):
         for i, scope in enumerate(reversed(self.scopes)):
             if name.lexeme in scope:
                 self.interpreter.resolve(var, i)
+                scope[name.lexeme].used = True
                 return
 
     def __resolve_function(self, fun: expr.Function):
@@ -80,7 +102,7 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
     def visit_variable_expr(self, var: expr.Variable):
         if len(self.scopes) > 0 \
                 and var.name.lexeme in self.scopes[-1] \
-                and not self.scopes[-1][var.name.lexeme]:
+                and not self.scopes[-1][var.name.lexeme].defined:
             self.error_reporter.report_resolver(
                     var.name.position,
                     "Can't read local variable in its own initializer.")

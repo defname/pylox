@@ -185,7 +185,7 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                                 "Cannot convert '"+str(right)+"' to str.")
                 raise errors.LoxRuntimeError(
                         expr.operator,
-                        "Both operands have to be strings or numbers"
+                        "Both operands have to be strings or numbers."
                     )
             case TokenType.MINUS:
                 self.__check_number_operands(expr.operator, left, right)
