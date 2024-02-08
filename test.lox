@@ -1,10 +1,12 @@
+
+var bar = "FOOBAR";
 class Test {
     test(foo) {
+        print foo;
+        print bar;
     }
 }
 {
-var obj = Test();
-obj.dummy = Test();
-obj.dummy.dummy = 123;
-print obj.dummy.dummy;
+Test().test("FOO");
 }
+

@@ -355,6 +355,14 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
         else:
             self.global_environment.define(klass.name)
 
-        k = LoxClass(klass.name.lexeme)
+        methods: dict[str, LoxFunction] = {}
+        for method in klass.methods:
+            function: LoxFunction = LoxFunction(
+                    method.name.lexeme,
+                    method.function,
+                    self.environment)
+            methods[method.name.lexeme] = function
+
+        k = LoxClass(klass.name.lexeme, methods)
 
         self.__assign_variable(klass.name, klass, k)

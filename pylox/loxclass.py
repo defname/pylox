@@ -20,6 +20,9 @@ class LoxInstance:
         if name.lexeme in self.fields:
             return self.fields[name.lexeme]
 
+        if name.lexeme in self.klass.methods:
+            return self.klass.methods[name.lexeme]
+
         raise errors.LoxRuntimeError(
                 name,
                 "Undefined property '" + name.lexeme + "'.")
@@ -34,9 +37,13 @@ class LoxInstance:
 
 class LoxClass(callable.LoxCallable):
     name: str
+    methods: dict[str, callable.LoxFunction]
 
-    def __init__(self, name: str):
+    def __init__(self,
+                 name: str,
+                 methods: dict[str, callable.LoxFunction]):
         self.name = name
+        self.methods = methods
 
     def call(self,
              interpreter: interpreter.Interpreter,

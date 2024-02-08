@@ -1,5 +1,6 @@
 from __future__ import annotations
 from collections import deque
+from enum import Enum
 from dataclasses import dataclass
 from typing import Deque, TYPE_CHECKING, Union
 from . import stmt
@@ -9,6 +10,13 @@ from .lexer import Token
 
 if TYPE_CHECKING:
     from .pylox import ErrorReporter
+
+
+FunctionType = Enum("FunctionType", [
+    "NONE",
+    "FUNCTION",
+    "METHOD"
+    ])
 
 
 @dataclass
@@ -83,7 +91,9 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
                 scope[name.lexeme].used = True
                 return
 
-    def __resolve_function(self, fun: expr.Function):
+    def __resolve_function(self,
+                           fun: expr.Function,
+                           typ: FunctionType = FunctionType.FUNCTION):
         self.__begin_scope()
         for param in fun.params:
             self.__declare(param)
@@ -184,6 +194,11 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
         self.__declare(klass.name)
         self.__define(klass.name)
         self.__resolve_local(klass, klass.name)
+
+        for method in klass.methods:
+            typ = FunctionType.METHOD
+            # TODO not sure if this is correct
+            self.__resolve_function(method.function, typ)
 
     def visit_get_expr(self, get: expr.Get):
         self.resolve_expr(get.object)
