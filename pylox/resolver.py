@@ -6,7 +6,7 @@ from typing import Deque, TYPE_CHECKING, Union
 from . import stmt
 from . import expr
 from . import interpreter as intpr
-from .lexer import Token
+from .lexer import Token, TokenType
 
 if TYPE_CHECKING:
     from .pylox import ErrorReporter
@@ -15,7 +15,13 @@ if TYPE_CHECKING:
 FunctionType = Enum("FunctionType", [
     "NONE",
     "FUNCTION",
-    "METHOD"
+    "METHOD",
+    "INITIALIZER"
+    ])
+
+ClassType = Enum("ClassType", [
+    "NONE",
+    "CLASS"
     ])
 
 
@@ -31,6 +37,8 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
     interpreter: intpr.Interpreter
     scopes: Deque[dict[str, VarState]]
     error_reporter: ErrorReporter
+    current_class: ClassType
+    current_function: FunctionType
 
     def __init__(self,
                  interpreter: intpr.Interpreter,
@@ -38,6 +46,8 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
         self.interpreter = interpreter
         self.scopes = deque()
         self.error_reporter = error_reporter
+        self.current_class = ClassType.NONE
+        self.current_function = FunctionType.NONE
 
     def resolve_stmt(self, statement: stmt.Stmt):
         statement.accept(self)
@@ -94,12 +104,15 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
     def __resolve_function(self,
                            fun: expr.Function,
                            typ: FunctionType = FunctionType.FUNCTION):
+        enclosing_function = self.current_function
+        self.current_function = typ
         self.__begin_scope()
         for param in fun.params:
             self.__declare(param)
             self.__define(param)
         self.resolve_stmt_list(fun.body)
         self.__end_scope()
+        self.current_function = enclosing_function
 
     def visit_block_stmt(self, block: stmt.Block):
         self.__begin_scope()
@@ -176,6 +189,10 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
 
     def visit_return_stmt(self, ret: stmt.Return):
         if ret.value is not None:
+            if self.current_function == FunctionType.INITIALIZER:
+                self.error_reporter.report_resolver(
+                        ret.keyword.position,
+                        "Can't return a value from initializer.")
             self.resolve_expr(ret.value)
 
     def visit_ternery_expr(self, ternery: expr.Ternery):
@@ -191,14 +208,26 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
         self.resolve_stmt(while_stmt.body)
 
     def visit_class_stmt(self, klass: stmt.Class):
+        enclosing_class: ClassType = self.current_class
+        self.current_class = ClassType.CLASS
+
         self.__declare(klass.name)
         self.__define(klass.name)
         self.__resolve_local(klass, klass.name)
 
+        self.__begin_scope()
+        self.scopes[-1]["this"] = VarState(
+                klass.name, True, True, 0)
+
         for method in klass.methods:
             typ = FunctionType.METHOD
-            # TODO not sure if this is correct
+            if method.name.lexeme == "init":
+                typ = FunctionType.INITIALIZER
             self.__resolve_function(method.function, typ)
+
+        self.__end_scope()
+
+        self.current_class = enclosing_class
 
     def visit_get_expr(self, get: expr.Get):
         self.resolve_expr(get.object)
@@ -206,3 +235,11 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
     def visit_set_expr(self, s: expr.Set):
         self.resolve_expr(s.value)
         self.resolve_expr(s.object)
+
+    def visit_this_expr(self, this: expr.This):
+        if self.current_class == ClassType.NONE:
+            self.error_reporter.report_resolver(
+                    this.keyword.position,
+                    "Can't use 'this' outside of a class.")
+            return
+        self.__resolve_local(this, this.keyword)

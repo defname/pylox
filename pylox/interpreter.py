@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 from .expr import Expr, Literal, Grouping, Binary, Unary, Ternery, Variable, \
-        Assign, Logical, Call, Function, Get, Set
+        Assign, Logical, Call, Function, Get, Set, This
 from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break, \
         FunDef, Return, Class
 from .lexer import TokenType, Token
@@ -294,6 +294,9 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                 return left
         return self.evaluate(expr.right)
 
+    def visit_this_expr(self, expr: This):
+        return self.__lookup_variable(expr.keyword, expr)
+
     ###########################################################################
     # Stmt.Visitor
     def visit_expression_stmt(self, stmt: Expression):
@@ -350,17 +353,18 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
 
     def visit_class_stmt(self, klass: Class):
         if self.environment is not None:
-            print("define " + klass.name.lexeme)
             self.environment.define(klass.name)
         else:
             self.global_environment.define(klass.name)
 
         methods: dict[str, LoxFunction] = {}
         for method in klass.methods:
+            is_initializer = method.name.lexeme == "init"
             function: LoxFunction = LoxFunction(
                     method.name.lexeme,
                     method.function,
-                    self.environment)
+                    self.environment,
+                    is_initializer)
             methods[method.name.lexeme] = function
 
         k = LoxClass(klass.name.lexeme, methods)

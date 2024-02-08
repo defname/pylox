@@ -66,6 +66,10 @@ class Expr(ABC):
         def visit_set_expr(self, expr: Set):
             pass
 
+        @abstractmethod
+        def visit_this_expr(self, expr: This):
+            pass
+
 
 @dataclass
 class Binary(Expr):
@@ -175,4 +179,12 @@ class Set(Expr):
 
     def accept(self, visitor: Expr.Visitor):
         return visitor.visit_set_expr(self)
+
+
+@dataclass
+class This(Expr):
+    keyword: Token
+
+    def accept(self, visitor: Expr.Visitor):
+        return visitor.visit_this_expr(self)
 

@@ -1,12 +1,19 @@
 
 var bar = "FOOBAR";
 class Test {
-    test(foo) {
-        print foo;
-        print bar;
+    init(val) {
+        this.foo = val;
+    }
+    m() {
+        print this.foo;
     }
 }
+fun foo() {
+    print "function";
+}
 {
-Test().test("FOO");
+    var o = Test("INIT");
+    o.m();
+    print o.init("FOOBAR");
 }
 

@@ -20,7 +20,7 @@ class Environment:
         self.values_array = []
         self.enclosing = enclosing
 
-    def define(self, name: Token, value: Any = UNINITIALIZED):
+    def define(self, name: Optional[Token], value: Any = UNINITIALIZED):
         """Define a new variable and initialize it with 'value'"""
         self.values_array.append(value)
 

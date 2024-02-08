@@ -21,7 +21,7 @@ class LoxInstance:
             return self.fields[name.lexeme]
 
         if name.lexeme in self.klass.methods:
-            return self.klass.methods[name.lexeme]
+            return self.klass.methods[name.lexeme].bind(self)
 
         raise errors.LoxRuntimeError(
                 name,
@@ -48,9 +48,15 @@ class LoxClass(callable.LoxCallable):
     def call(self,
              interpreter: interpreter.Interpreter,
              arguments: list[lexer.Token]):
-        return LoxInstance(self)
+        instance = LoxInstance(self)
+        if "init" in self.methods:
+            self.methods["init"].bind(instance).call(interpreter,
+                                                     arguments)
+        return instance
 
     def arity(self):
+        if "init" in self.methods:
+            return self.methods["init"].arity()
         return 0
 
     def __str__(self):

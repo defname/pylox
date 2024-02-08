@@ -105,7 +105,8 @@ if __name__ == "__main__":
         "Logical: Expr left; Token operator; Expr right",
         "Function: list[Token] params; list[stmt.Stmt] body",
         "Get: Expr object; Token name",
-        "Set: Expr object; Token name; Expr value"
+        "Set: Expr object; Token name; Expr value",
+        "This: Token keyword"
     ]
     IMPORTS = ["from . import stmt"]
     generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR, IMPORTS)

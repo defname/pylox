@@ -54,13 +54,14 @@ The grammar is defined by:
     primary     -> NUMBER | STRING
                    | "true" | "false" | "nil"
                    | "(" expression ")"
+                   | "this"
                    | IDENTIFIER
 """
 from __future__ import annotations
 from typing import Callable, TYPE_CHECKING, Optional
 from .lexer import Token, TokenType
 from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery, Variable, \
-        Assign, Logical, Call, Function, Get, Set
+        Assign, Logical, Call, Function, Get, Set, This
 from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break, \
         FunDef, Return, Class
 
@@ -533,6 +534,9 @@ class Parser:
 
         if self.__match([TokenType.FUN]):
             return self.__function_body("function")
+
+        if self.__match([TokenType.THIS]):
+            return This(self.__previous())
 
         # check for a faulty positioned binary operator
         if self.__match(BINARY_OPERATOR_TYPES):
