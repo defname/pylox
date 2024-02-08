@@ -1,5 +1,0 @@
-{
-    "python.analysis.autoImportCompletions": true,
-    "python.createEnvironment.trigger": "prompt",
-    "python.analysis.typeCheckingMode": "basic"
-}
