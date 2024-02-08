@@ -5,10 +5,12 @@ The grammar is defined by:
 
     program     -> declaration* EOF
 
-    declaration -> varDecl
+    declaration -> classDecl
+                   | varDecl
                    | funDecl
                    | statement
 
+    classDecl   -> "class" IDENTIFIER "{" function* "}"
     varDecl     -> "var" IDENTIFIER ("=" expression)? ";"
     funDecl     -> "fun" function
     function    -> IDENTIFIER "(" parameters? ")" block
@@ -36,7 +38,7 @@ The grammar is defined by:
     returnStmt  -> "return" expression? ";"
 
     expression  -> assignment
-    assignment  -> IDENTIFIER "=" assignment
+    assignment  -> ( call "." )? IDENTIFIER "=" assignment
                    | logical_or
     logical_or  -> logical_and ("or" logical_and)*
     logical_and -> ternery ("and" ternery)*
@@ -46,7 +48,7 @@ The grammar is defined by:
     term        -> factor ( ( "-" | "+" ) factor )*
     factor      -> unary ( ( "/"  | "*" ) unary )*
     unary       -> ( "!" | "-" ) unary | call
-    call        -> primary ( "(" arguments ")" )*
+    call        -> primary ( "(" arguments? ")" | "." IDENTIFIER )*
     arguments   -> expression ( "," expression )*
 
     primary     -> NUMBER | STRING
@@ -58,9 +60,9 @@ from __future__ import annotations
 from typing import Callable, TYPE_CHECKING, Optional
 from .lexer import Token, TokenType
 from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery, Variable, \
-        Assign, Logical, Call, Function
+        Assign, Logical, Call, Function, Get, Set
 from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break, \
-        FunDef, Return
+        FunDef, Return, Class
 
 if TYPE_CHECKING:
     from .pylox import ErrorReporter
@@ -159,10 +161,24 @@ class Parser:
                 # raise an error, so msg is irrelevant
                 self.__consume(TokenType.FUN, "")
                 return self.__function("function")
+            if self.__match([TokenType.CLASS]):
+                return self.__class_decl()
             return self.__statement()
         except ParseError:
             self.__synchronize()
             return None
+
+    def __class_decl(self) -> Stmt:
+        class_name = self.__consume(TokenType.IDENTIFIER,
+                                    "Expect class name.")
+        self.__consume(TokenType.LEFT_BRACE,
+                       "Expect '{' before class body.")
+        methods: list[FunDef] = []
+        while not self.__check(TokenType.RIGHT_BRACE) \
+                and not self.__is_at_end():
+            methods.append(self.__function("method"))
+        self.__consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
+        return Class(class_name, methods)
 
     def __var_decl(self) -> Stmt:
         var_name = self.__consume(TokenType.IDENTIFIER,
@@ -175,7 +191,7 @@ class Parser:
                        "Expect ';' after variable declaration.")
         return Var(var_name, initializer)
 
-    def __function(self, kind: str) -> Stmt:
+    def __function(self, kind: str) -> FunDef:
         """
         Helper function to produce function definition statement.
         Used for function or class methods.
@@ -379,6 +395,9 @@ class Parser:
             if isinstance(expr, Variable):
                 var: Variable = expr
                 return Assign(var.name, value)
+            elif isinstance(expr, Get):
+                get: Get = expr
+                return Set(get.object, get.name, value)
 
             self.__error(equals, "Invalid assignment target.")
         return expr
@@ -464,6 +483,11 @@ class Parser:
         while True:
             if self.__match([TokenType.LEFT_PAREN]):
                 expr = self.__finish_call(expr)
+            elif self.__match([TokenType.DOT]):
+                name: Token = self.__consume(
+                        TokenType.IDENTIFIER,
+                        "Expect property name after '.'.")
+                expr = Get(expr, name)
             else:
                 break
         return expr

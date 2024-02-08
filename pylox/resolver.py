@@ -1,7 +1,7 @@
 from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, TYPE_CHECKING
+from typing import Deque, TYPE_CHECKING, Union
 from . import stmt
 from . import expr
 from . import interpreter as intpr
@@ -73,7 +73,7 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
             return
         self.scopes[-1][name.lexeme].defined = True
 
-    def __resolve_local(self, var: expr.Expr, name: Token):
+    def __resolve_local(self, var: Union[expr.Expr, stmt.Stmt], name: Token):
         for i, scope in enumerate(reversed(self.scopes)):
             if name.lexeme in scope:
                 self.interpreter.resolve(
@@ -90,7 +90,6 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
             self.__define(param)
         self.resolve_stmt_list(fun.body)
         self.__end_scope()
-
 
     def visit_block_stmt(self, block: stmt.Block):
         self.__begin_scope()
@@ -180,3 +179,15 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
     def visit_while_stmt(self, while_stmt: stmt.While):
         self.resolve_expr(while_stmt.condition)
         self.resolve_stmt(while_stmt.body)
+
+    def visit_class_stmt(self, klass: stmt.Class):
+        self.__declare(klass.name)
+        self.__define(klass.name)
+        self.__resolve_local(klass, klass.name)
+
+    def visit_get_expr(self, get: expr.Get):
+        self.resolve_expr(get.object)
+
+    def visit_set_expr(self, s: expr.Set):
+        self.resolve_expr(s.value)
+        self.resolve_expr(s.object)

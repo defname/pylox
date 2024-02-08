@@ -58,6 +58,14 @@ class Expr(ABC):
         def visit_function_expr(self, expr: Function):
             pass
 
+        @abstractmethod
+        def visit_get_expr(self, expr: Get):
+            pass
+
+        @abstractmethod
+        def visit_set_expr(self, expr: Set):
+            pass
+
 
 @dataclass
 class Binary(Expr):
@@ -148,4 +156,23 @@ class Function(Expr):
 
     def accept(self, visitor: Expr.Visitor):
         return visitor.visit_function_expr(self)
+
+
+@dataclass
+class Get(Expr):
+    object: Expr
+    name: Token
+
+    def accept(self, visitor: Expr.Visitor):
+        return visitor.visit_get_expr(self)
+
+
+@dataclass
+class Set(Expr):
+    object: Expr
+    name: Token
+    value: Expr
+
+    def accept(self, visitor: Expr.Visitor):
+        return visitor.visit_set_expr(self)
 

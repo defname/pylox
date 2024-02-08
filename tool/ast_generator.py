@@ -103,7 +103,9 @@ if __name__ == "__main__":
         "Variable: Token name",
         "Assign: Token name; Expr value",
         "Logical: Expr left; Token operator; Expr right",
-        "Function: list[Token] params; list[stmt.Stmt] body"
+        "Function: list[Token] params; list[stmt.Stmt] body",
+        "Get: Expr object; Token name",
+        "Set: Expr object; Token name; Expr value"
     ]
     IMPORTS = ["from . import stmt"]
     generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR, IMPORTS)
@@ -118,7 +120,8 @@ if __name__ == "__main__":
         "Var: Token name; Optional[expr.Expr] initializer",
         "Block: list[Stmt] statements",
         "Break: Token keyword",
-        "Return: Token keyword; Optional[expr.Expr] value"
+        "Return: Token keyword; Optional[expr.Expr] value",
+        "Class: Token name; list[FunDef] methods"
     ]
     IMPORTS = ["from . import expr"]
     generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR, IMPORTS)

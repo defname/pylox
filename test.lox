@@ -1,10 +1,10 @@
-var i=0;
-{
-    var i=1;
-    var j = i;
-    {
-        print j;
+class Test {
+    test(foo) {
     }
-    print i;
 }
-print i;
+{
+var obj = Test();
+obj.dummy = Test();
+obj.dummy.dummy = 123;
+print obj.dummy.dummy;
+}

@@ -54,6 +54,10 @@ class Stmt(ABC):
         def visit_return_stmt(self, stmt: Return):
             pass
 
+        @abstractmethod
+        def visit_class_stmt(self, stmt: Class):
+            pass
+
 
 @dataclass
 class Expression(Stmt):
@@ -131,4 +135,13 @@ class Return(Stmt):
 
     def accept(self, visitor: Stmt.Visitor):
         return visitor.visit_return_stmt(self)
+
+
+@dataclass
+class Class(Stmt):
+    name: Token
+    methods: list[FunDef]
+
+    def accept(self, visitor: Stmt.Visitor):
+        return visitor.visit_class_stmt(self)
 

@@ -1,15 +1,17 @@
 """Implements Interpreter"""
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 from .expr import Expr, Literal, Grouping, Binary, Unary, Ternery, Variable, \
-        Assign, Logical, Call, Function
+        Assign, Logical, Call, Function, Get, Set
 from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break, \
-        FunDef, Return
+        FunDef, Return, Class
 from .lexer import TokenType, Token
 from .callable import LoxCallable, LoxFunction
+from .loxclass import LoxClass
 from .environment import Environment, UNINITIALIZED
 from . import errors
 from . import builtin
+from . import loxclass
 
 if TYPE_CHECKING:
     from .pylox import ErrorReporter
@@ -91,8 +93,8 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
         finally:
             self.environment = previous_environment
 
-    def resolve(self, expr: Expr, depth: int, index: int):
-        self.local_definitions[id(expr)] = (depth, index)
+    def resolve(self, node: Union[Expr, Stmt], depth: int, index: int):
+        self.local_definitions[id(node)] = (depth, index)
 
     def __lookup_variable(self, name: Token, expr: Expr):
         distance, index = self.local_definitions.get(id(expr), (None, None))
@@ -101,6 +103,20 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                 and self.environment is not None:
             return self.environment.get_at(distance, index, name.lexeme)
         return self.global_environment.get(name)
+
+    def __assign_variable(self,
+                          name: Token,
+                          expr: Union[Expr, Stmt],
+                          value: Any):
+        distance, index = self.local_definitions.get(id(expr), (None, None))
+        if distance is not None \
+                and index is not None \
+                and self.environment is not None:
+            return self.environment.assign_at(
+                    distance, index, name, value
+                )
+        return self.global_environment.assign(name, value)
+
 
     def stringify(self, value: Any):
         if value is None:
@@ -160,6 +176,25 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                 )
 
         return function.call(self, arguments)
+
+    def visit_get_expr(self, expr: Get):
+        obj: Any = self.evaluate(expr.object)
+        if isinstance(obj, loxclass.LoxInstance):
+            return obj.get(expr.name)
+
+        raise errors.LoxRuntimeError(
+                expr.name,
+                "Only class instances have properties.")
+
+    def visit_set_expr(self, expr: Set):
+        obj: Any = self.evaluate(expr.object)
+        if isinstance(obj, loxclass.LoxInstance):
+            value = self.evaluate(expr.value)
+            return obj.set(expr.name, value)
+
+        raise errors.LoxRuntimeError(
+                expr.name,
+                "Only instances of classes have fields.")
 
     def visit_function_expr(self, expr: Function):
         return LoxFunction(None, expr, self.environment)
@@ -246,13 +281,7 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
 
     def visit_assign_expr(self, expr: Assign):
         value = self.evaluate(expr.value)
-        distance, index = self.local_definitions.get(id(expr), (None, None))
-        if distance is not None \
-                and index is not None \
-                and self.environment is not None:
-            self.environment.assign_at(distance, index, expr.name, value)
-        else:
-            self.global_environment.assign(expr.name, value)
+        self.__assign_variable(expr.name, expr, value)
         return value
 
     def visit_logical_expr(self, expr: Logical):
@@ -318,3 +347,14 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             raise errors.LoxReturn(None)
         value = self.evaluate(stmt.value)
         raise errors.LoxReturn(value)
+
+    def visit_class_stmt(self, klass: Class):
+        if self.environment is not None:
+            print("define " + klass.name.lexeme)
+            self.environment.define(klass.name)
+        else:
+            self.global_environment.define(klass.name)
+
+        k = LoxClass(klass.name.lexeme)
+
+        self.__assign_variable(klass.name, klass, k)
