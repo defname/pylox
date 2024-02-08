@@ -358,6 +358,7 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             self.global_environment.define(klass.name)
 
         methods: dict[str, LoxFunction] = {}
+        static_methods: dict[str, LoxFunction] = {}
         for method in klass.methods:
             is_initializer = method.name.lexeme == "init"
             function: LoxFunction = LoxFunction(
@@ -366,7 +367,13 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                     self.environment,
                     is_initializer)
             methods[method.name.lexeme] = function
+        for static_method in klass.static_methods:
+            function: LoxFunction = LoxFunction(
+                    static_method.name.lexeme,
+                    static_method.function,
+                    self.environment)
+            static_methods[static_method.name.lexeme] = function
 
-        k = LoxClass(klass.name.lexeme, methods)
+        k = LoxClass(klass.name.lexeme, methods, static_methods)
 
         self.__assign_variable(klass.name, klass, k)

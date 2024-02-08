@@ -16,6 +16,7 @@ FunctionType = Enum("FunctionType", [
     "NONE",
     "FUNCTION",
     "METHOD",
+    "STATICMETHOD",
     "INITIALIZER"
     ])
 
@@ -225,6 +226,11 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
                 typ = FunctionType.INITIALIZER
             self.__resolve_function(method.function, typ)
 
+        for static_method in klass.static_methods:
+            self.__resolve_function(
+                    static_method.function,
+                    FunctionType.STATICMETHOD)
+
         self.__end_scope()
 
         self.current_class = enclosing_class
@@ -241,5 +247,10 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
             self.error_reporter.report_resolver(
                     this.keyword.position,
                     "Can't use 'this' outside of a class.")
+            return
+        if self.current_function == FunctionType.STATICMETHOD:
+            self.error_reporter.report_resolver(
+                    this.keyword.position,
+                    "Can't use 'this' in static methods.")
             return
         self.__resolve_local(this, this.keyword)

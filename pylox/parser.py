@@ -10,7 +10,7 @@ The grammar is defined by:
                    | funDecl
                    | statement
 
-    classDecl   -> "class" IDENTIFIER "{" function* "}"
+    classDecl   -> "class" IDENTIFIER "{" ( ( "class" )? function )* "}"
     varDecl     -> "var" IDENTIFIER ("=" expression)? ";"
     funDecl     -> "fun" function
     function    -> IDENTIFIER "(" parameters? ")" block
@@ -175,11 +175,15 @@ class Parser:
         self.__consume(TokenType.LEFT_BRACE,
                        "Expect '{' before class body.")
         methods: list[FunDef] = []
+        static_methods: list[FunDef] = []
         while not self.__check(TokenType.RIGHT_BRACE) \
                 and not self.__is_at_end():
-            methods.append(self.__function("method"))
+            if self.__match([TokenType.CLASS]):  # static (class) method
+                static_methods.append(self.__function("static method"))
+            else:
+                methods.append(self.__function("method"))
         self.__consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
-        return Class(class_name, methods)
+        return Class(class_name, methods, static_methods)
 
     def __var_decl(self) -> Stmt:
         var_name = self.__consume(TokenType.IDENTIFIER,

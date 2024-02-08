@@ -35,15 +35,19 @@ class LoxInstance:
         return "<instance " + self.klass.name + ">"
 
 
-class LoxClass(callable.LoxCallable):
+class LoxClass(callable.LoxCallable, LoxInstance):
     name: str
     methods: dict[str, callable.LoxFunction]
+    fields: dict[str, callable.LoxFunction]  # holds the static methods
 
     def __init__(self,
                  name: str,
-                 methods: dict[str, callable.LoxFunction]):
+                 methods: dict[str, callable.LoxFunction],
+                 static_methods: dict[str, callable.LoxFunction]):
+        LoxInstance.__init__(self, self)
         self.name = name
         self.methods = methods
+        self.fields = static_methods
 
     def call(self,
              interpreter: interpreter.Interpreter,
@@ -58,6 +62,20 @@ class LoxClass(callable.LoxCallable):
         if "init" in self.methods:
             return self.methods["init"].arity()
         return 0
+
+    def get(self, name: lexer.Token):
+        if name.lexeme in self.fields:
+            return self.fields[name.lexeme]
+        else:
+            raise errors.LoxRuntimeError(
+                    name,
+                    "Class " + self.name + " has no static method '"
+                    + name.lexeme + "'.")
+
+    def set(self, name: lexer.Token, value: Any):
+        raise errors.LoxRuntimeError(
+                name,
+                "Properties can only be defined on objects not on classes.")
 
     def __str__(self):
         return "<class " + self.name + ">"

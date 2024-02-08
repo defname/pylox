@@ -141,6 +141,7 @@ class Return(Stmt):
 class Class(Stmt):
     name: Token
     methods: list[FunDef]
+    static_methods: list[FunDef]
 
     def accept(self, visitor: Stmt.Visitor):
         return visitor.visit_class_stmt(self)
