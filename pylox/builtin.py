@@ -4,7 +4,9 @@ All Lox built-in functions are defined here.
 from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 from time import time_ns
+import math
 from . import callable
+from . import loxclass
 from .errors import LoxRuntimeError
 
 if TYPE_CHECKING:
@@ -32,3 +34,8 @@ class LoxInput(callable.LoxCallable):
     def __str__(self):
         return "<native-fun: input>"
 
+
+FUNCTIONS = {
+        "time": LoxTime(),
+        "input": LoxInput()
+        }

@@ -148,12 +148,8 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
         self.resolve_expr(fundef.function)
 
     def visit_function_expr(self, fun: expr.Function):
-        self.__begin_scope()
-        for param in fun.params:
-            self.__declare(param)
-            self.__define(param)
-        self.resolve_stmt_list(fun.body)
-        self.__end_scope()
+        self.__resolve_function(fun)
+        return
 
     def visit_binary_expr(self, bin_expr: expr.Binary):
         self.resolve_expr(bin_expr.left)

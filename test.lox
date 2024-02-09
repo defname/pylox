@@ -1,15 +1,44 @@
-{
-class Super {
-    test() {
-        print "Super";
+class LinkedListItem {
+    init(value, predecessor, successor) {
+        this.value = value;
+        this.predecessor = predecessor;
+        this.successor = successor;
     }
 }
 
-class Test < Super {
-    test2() {
-        super.test();
-        print "Test";
+class LinkedList {
+    init() {
+        this.start = nil;
+        this.end = nil;
+    }
+
+    push(val) {
+        if (this.start == nil or this.end == nil) {
+            this.start = this.end = LinkedListItem(val, this.start, this.end);
+            return;
+        }
+        var newItem = LinkedListItem(val, this.end, nil);
+        this.end.successor = newItem;
+        this.end = newItem;
+    }
+
+    printList() {
+        if (this.start == nil) return;
+        var pos = 1;
+        for (var current = this.start; 
+             current != nil;
+             current = current.successor) {
+            print pos + current.value;
+            pos = pos + 1;
+        }
     }
 }
-Test().test2();
+
+
+var list = LinkedList();
+
+for (var inp = input(); inp != "."; inp = input()) {
+    list.push(inp);
 }
+
+list.printList();

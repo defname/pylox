@@ -22,8 +22,10 @@ class GlobalEnvironment:
 
     def __init__(self):
         self.values = {}
-        self.define(Token(None, "time", None),
-                    builtin.LoxTime())
+
+        for name, lox_function in builtin.FUNCTIONS.items():
+            self.define(Token(None, name, None),
+                        lox_function)
 
     def define(self, name: Token, value: Any = UNINITIALIZED):
         self.values[name.lexeme] = value

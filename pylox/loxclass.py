@@ -2,10 +2,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional
 from . import callable
 from . import errors
+from . import lexer
 
 if TYPE_CHECKING:
     from . import interpreter
-    from . import lexer
 
 
 class LoxInstance:
@@ -41,6 +41,7 @@ class LoxClass(callable.LoxCallable, LoxInstance):
     superclass: Optional[LoxClass]
     methods: dict[str, callable.LoxFunction]
     fields: dict[str, callable.LoxFunction]  # holds the static methods
+    initializer: Optional[callable.LoxFunction]
 
     def __init__(self,
                  name: str,
@@ -53,18 +54,24 @@ class LoxClass(callable.LoxCallable, LoxInstance):
         self.methods = methods
         self.fields = static_methods
 
+        self.initializer = self.find_method(
+                lexer.Token(lexer.TokenType.IDENTIFIER,
+                            "init",
+                            lexer.SourcePosition())
+                )
+
     def call(self,
              interpreter: interpreter.Interpreter,
              arguments: list[lexer.Token]):
         instance = LoxInstance(self)
-        if "init" in self.methods:
-            self.methods["init"].bind(instance).call(interpreter,
-                                                     arguments)
+        if self.initializer is not None:
+            self.initializer.bind(instance).call(interpreter,
+                                                 arguments)
         return instance
 
     def arity(self):
-        if "init" in self.methods:
-            return self.methods["init"].arity()
+        if self.initializer is not None:
+            return self.initializer.arity()
         return 0
 
     def get(self, name: lexer.Token, dont_raise_error: bool = False):
