@@ -1,3 +1,5 @@
+// Implement array like structure
+
 class LinkedListItem {
     init(value, predecessor, successor) {
         this.value = value;
@@ -10,9 +12,12 @@ class LinkedList {
     init() {
         this.start = nil;
         this.end = nil;
+        this.length = 0;
     }
 
     push(val) {
+        this.length = this.length + 1;
+        
         if (this.start == nil or this.end == nil) {
             this.start = this.end = LinkedListItem(val, this.start, this.end);
             return;
@@ -22,23 +27,51 @@ class LinkedList {
         this.end = newItem;
     }
 
-    printList() {
-        if (this.start == nil) return;
-        var pos = 1;
-        for (var current = this.start; 
-             current != nil;
-             current = current.successor) {
-            print pos + current.value;
-            pos = pos + 1;
+    _get(pos) {
+        if (pos >= this.length) return nil;
+
+        var current = this.start;
+        for (var i=0; i<pos; i=i+1) {
+            current = current.successor;
         }
+
+        return current;
+    }
+
+    get(pos) {
+        var item = this._get(pos);
+        if (item == nil) return nil;
+        return item.value;
+    }
+
+    remove(pos) {
+        var item = this._get(pos);
+        if (item == nil) return;
+        this.length = this.length - 1;
+        if (item.predecessor == nil) { // first item in list
+            this.start = item.successor;
+            return;
+        }
+        item.predecessor.successor = item.successor;
+    }
+
+    clear() {
+        self.start = self.end = nil;
+        self.length = 0;
     }
 }
 
 
 var list = LinkedList();
 
-for (var inp = input(); inp != "."; inp = input()) {
-    list.push(inp);
+for (var i=0; i<10; i=i+1) {
+    list.push(10*i);
 }
 
-list.printList();
+for (var i=0; i< 5; i=i+1) {
+    list.remove(i*2);
+}
+
+for (var i = list.length-1; i >= 0; i = i - 1) {
+    print list.get(i);
+}

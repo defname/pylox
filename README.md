@@ -1,6 +1,16 @@
-I'm currently reading the awesome book ["Crafting Interpreters"](https://craftinginterpreters.com/)] by Rober Nystrom, in which he describes how to write an interpreter for Lox as an example language.
+I'm currently reading the awesome book ["Crafting Interpreters"](https://craftinginterpreters.com/) by Rober Nystrom, in which he describes how to write an interpreter for Lox as an example language.
 
 This is pretty much the implementation he describes written in Python.
-I also implemented most of the challenges (like ternery expressions, nameless functions, ...).
+I also implemented some of the challenges (like ternery expressions, nameless functions, ...).
 
 Still work in progess...
+
+Additional features:
+- ternery operator:
+  `condition ? then_expr : else_expr`
+- nameless functions:
+  `fun (arg) { do_something; }`
+- 'static' methods, callable on a class not an instance
+- implicit conversion to str if numbers and strings are added
+  `4+'foo' == '4foo'`
+- `break` statement to break out of loops
