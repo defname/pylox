@@ -70,6 +70,10 @@ class Expr(ABC):
         def visit_this_expr(self, expr: This):
             pass
 
+        @abstractmethod
+        def visit_super_expr(self, expr: Super):
+            pass
+
 
 @dataclass
 class Binary(Expr):
@@ -187,4 +191,13 @@ class This(Expr):
 
     def accept(self, visitor: Expr.Visitor):
         return visitor.visit_this_expr(self)
+
+
+@dataclass
+class Super(Expr):
+    keyword: Token
+    method: Token
+
+    def accept(self, visitor: Expr.Visitor):
+        return visitor.visit_super_expr(self)
 

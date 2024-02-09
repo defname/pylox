@@ -106,7 +106,8 @@ if __name__ == "__main__":
         "Function: list[Token] params; list[stmt.Stmt] body",
         "Get: Expr object; Token name",
         "Set: Expr object; Token name; Expr value",
-        "This: Token keyword"
+        "This: Token keyword",
+        "Super: Token keyword; Token method"
     ]
     IMPORTS = ["from . import stmt"]
     generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR, IMPORTS)

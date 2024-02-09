@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 from .expr import Expr, Literal, Grouping, Binary, Unary, Ternery, Variable, \
-        Assign, Logical, Call, Function, Get, Set, This
+        Assign, Logical, Call, Function, Get, Set, This, Super
 from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break, \
         FunDef, Return, Class
 from .lexer import TokenType, Token
@@ -296,6 +296,25 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
 
     def visit_this_expr(self, expr: This):
         return self.__lookup_variable(expr.keyword, expr)
+    
+    def visit_super_expr(self, expr: Super):
+        distance, index = self.local_definitions.get(id(expr), (None, None))
+        if self.environment is None or distance is None or index is None:
+            # Cannot happen, since it is ensured, that 'super' is only used
+            # in subclasses
+            raise RuntimeError("Impossible situation")
+        superclass: LoxClass = self.environment.get_at(
+                distance, index, "super")
+        this: LoxClass = self.environment.get_at(distance-1, 0, "this")
+        method: Optional[LoxFunction] = superclass.find_method(expr.method)
+
+        if method is None:
+            raise errors.LoxRuntimeError(
+                    expr.method,
+                    "Class '" + superclass.name + "' has no method '"
+                    + expr.method.lexeme + "'.")
+
+        return method.bind(this)
 
     ###########################################################################
     # Stmt.Visitor
@@ -352,7 +371,7 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
         raise errors.LoxReturn(value)
 
     def visit_class_stmt(self, klass: Class):
-        superclass: Optional[Class] = None
+        superclass: Optional[LoxClass] = None
         if klass.superclass is not None:
             superclass = self.evaluate(klass.superclass)
             if not isinstance(superclass, LoxClass):
@@ -365,6 +384,12 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             self.environment.define(klass.name)
         else:
             self.global_environment.define(klass.name)
+
+        if klass.superclass is not None:
+            # create environment for super
+            self.environment = Environment(self.environment)
+            # define 'super' (name is not needed since Resolver handles it)
+            self.environment.define(None, superclass)
 
         methods: dict[str, LoxFunction] = {}
         for method in klass.methods:
@@ -383,6 +408,13 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                     static_method.function,
                     self.environment)
             static_methods[static_method.name.lexeme] = sfunction
+
+        if klass.superclass is not None:
+            if self.environment is None:
+                # it's created above...
+                raise RuntimeError("This cannot happen!")
+            # leave environment for 'super'
+            self.environment = self.environment.enclosing
 
         k = LoxClass(klass.name.lexeme, superclass, methods, static_methods)
 

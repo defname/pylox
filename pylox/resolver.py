@@ -22,7 +22,8 @@ FunctionType = Enum("FunctionType", [
 
 ClassType = Enum("ClassType", [
     "NONE",
-    "CLASS"
+    "CLASS",
+    "SUBCLASS"
     ])
 
 
@@ -223,6 +224,13 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
                         "Can't inherit from itself.")
             self.resolve_expr(klass.superclass)
 
+        if klass.superclass is not None:
+            # begin scope for "super"
+            self.current_class = ClassType.SUBCLASS
+            self.__begin_scope()
+            self.scopes[-1]["super"] = VarState(
+                    klass.superclass.name, True, True, 0)
+
         self.__begin_scope()
         self.scopes[-1]["this"] = VarState(
                 klass.name, True, True, 0)
@@ -239,6 +247,10 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
                     FunctionType.STATICMETHOD)
 
         self.__end_scope()
+
+        if klass.superclass is not None:
+            # end scope for "super"
+            self.__end_scope()
 
         self.current_class = enclosing_class
 
@@ -261,3 +273,11 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
                     "Can't use 'this' in static methods.")
             return
         self.__resolve_local(this, this.keyword)
+
+    def visit_super_expr(self, supi: expr.Super):
+        if self.current_class != ClassType.SUBCLASS:
+            self.error_reporter.report_resolver(
+                    supi.keyword.position,
+                    "Can't use 'super' outside of subclasses.")
+        self.__resolve_local(supi, supi.keyword)
+

@@ -56,13 +56,14 @@ The grammar is defined by:
                    | "true" | "false" | "nil"
                    | "(" expression ")"
                    | "this"
+                   | "super" "." IDENTIFIER
                    | IDENTIFIER
 """
 from __future__ import annotations
 from typing import Callable, TYPE_CHECKING, Optional
 from .lexer import Token, TokenType
 from .expr import Expr, Binary, Unary, Grouping, Literal, Ternery, Variable, \
-        Assign, Logical, Call, Function, Get, Set, This
+        Assign, Logical, Call, Function, Get, Set, This, Super
 from .stmt import Stmt, Expression, Print, Var, Block, If, While, Break, \
         FunDef, Return, Class
 
@@ -549,6 +550,15 @@ class Parser:
 
         if self.__match([TokenType.THIS]):
             return This(self.__previous())
+        
+        if self.__match([TokenType.SUPER]):
+            keyword: Token = self.__previous()
+            self.__consume(TokenType.DOT,
+                           "Expect '.' after 'super'.")
+            method: Token = self.__consume(
+                    TokenType.IDENTIFIER,
+                    "Expect method name.")
+            return Super(keyword, method)
 
         # check for a faulty positioned binary operator
         if self.__match(BINARY_OPERATOR_TYPES):
