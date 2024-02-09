@@ -122,7 +122,7 @@ if __name__ == "__main__":
         "Block: list[Stmt] statements",
         "Break: Token keyword",
         "Return: Token keyword; Optional[expr.Expr] value",
-        "Class: Token name; list[FunDef] methods; list[FunDef] static_methods"
+        "Class: Token name; Optional[Variabel] superclass; list[FunDef] methods; list[FunDef] static_methods"
     ]
     IMPORTS = ["from . import expr"]
     generate_ast(BASE_CLASS, OBJECT_DEFINITIONS, OUTPUT_DIR, IMPORTS)

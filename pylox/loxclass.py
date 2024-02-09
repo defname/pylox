@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 from . import callable
 from . import errors
 
@@ -20,8 +20,9 @@ class LoxInstance:
         if name.lexeme in self.fields:
             return self.fields[name.lexeme]
 
-        if name.lexeme in self.klass.methods:
-            return self.klass.methods[name.lexeme].bind(self)
+        method: Optional[callable.LoxFunction] = self.klass.find_method(name)
+        if method is not None:
+            return method.bind(self)
 
         raise errors.LoxRuntimeError(
                 name,
@@ -37,15 +38,18 @@ class LoxInstance:
 
 class LoxClass(callable.LoxCallable, LoxInstance):
     name: str
+    superclass: Optional[LoxClass]
     methods: dict[str, callable.LoxFunction]
     fields: dict[str, callable.LoxFunction]  # holds the static methods
 
     def __init__(self,
                  name: str,
+                 superclass: Optional[LoxClass],
                  methods: dict[str, callable.LoxFunction],
                  static_methods: dict[str, callable.LoxFunction]):
         LoxInstance.__init__(self, self)
         self.name = name
+        self.superclass = superclass
         self.methods = methods
         self.fields = static_methods
 
@@ -63,14 +67,34 @@ class LoxClass(callable.LoxCallable, LoxInstance):
             return self.methods["init"].arity()
         return 0
 
-    def get(self, name: lexer.Token):
+    def get(self, name: lexer.Token, dont_raise_error: bool = False):
+        """Find static method"""
         if name.lexeme in self.fields:
             return self.fields[name.lexeme]
-        else:
-            raise errors.LoxRuntimeError(
-                    name,
-                    "Class " + self.name + " has no static method '"
-                    + name.lexeme + "'.")
+
+        static_method: Optional[callable.LoxFunction] = None
+        if self.superclass is not None:
+            static_method = self.superclass.get(name, True)
+
+        if static_method is not None:
+            return static_method
+
+        if dont_raise_error:
+            return None
+
+        raise errors.LoxRuntimeError(
+                name,
+                "Class " + self.name + " has no static method '"
+                + name.lexeme + "'.")
+
+    def find_method(self, name: lexer.Token) -> Optional[callable.LoxFunction]:
+        if name.lexeme in self.methods:
+            return self.methods[name.lexeme]
+
+        if self.superclass is not None:
+            return self.superclass.find_method(name)
+
+        return None
 
     def set(self, name: lexer.Token, value: Any):
         raise errors.LoxRuntimeError(

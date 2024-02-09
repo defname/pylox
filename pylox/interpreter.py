@@ -352,13 +352,21 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
         raise errors.LoxReturn(value)
 
     def visit_class_stmt(self, klass: Class):
+        superclass: Optional[Class] = None
+        if klass.superclass is not None:
+            superclass = self.evaluate(klass.superclass)
+            if not isinstance(superclass, LoxClass):
+                raise errors.LoxRuntimeError(
+                        klass.superclass.name,
+                        "'" + klass.superclass.name.lexeme + "' is not "
+                        + "a class. Can only inherit from class.")
+
         if self.environment is not None:
             self.environment.define(klass.name)
         else:
             self.global_environment.define(klass.name)
 
         methods: dict[str, LoxFunction] = {}
-        static_methods: dict[str, LoxFunction] = {}
         for method in klass.methods:
             is_initializer = method.name.lexeme == "init"
             function: LoxFunction = LoxFunction(
@@ -367,13 +375,15 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                     self.environment,
                     is_initializer)
             methods[method.name.lexeme] = function
+
+        static_methods: dict[str, LoxFunction] = {}
         for static_method in klass.static_methods:
-            function: LoxFunction = LoxFunction(
+            sfunction: LoxFunction = LoxFunction(
                     static_method.name.lexeme,
                     static_method.function,
                     self.environment)
-            static_methods[static_method.name.lexeme] = function
+            static_methods[static_method.name.lexeme] = sfunction
 
-        k = LoxClass(klass.name.lexeme, methods, static_methods)
+        k = LoxClass(klass.name.lexeme, superclass, methods, static_methods)
 
         self.__assign_variable(klass.name, klass, k)

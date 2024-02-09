@@ -1,7 +1,14 @@
-class Test {
-    class test() {
-        print "Test";
+
+class Super {
+    test() {
+        print "Super";
     }
 }
 
-Test.test();
+class Test < Super {
+    test2() {
+        print "Test";
+    }
+}
+Test().test();
+

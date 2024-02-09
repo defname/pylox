@@ -140,6 +140,7 @@ class Return(Stmt):
 @dataclass
 class Class(Stmt):
     name: Token
+    superclass: Optional[Variabel]
     methods: list[FunDef]
     static_methods: list[FunDef]
 

@@ -216,6 +216,13 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
         self.__define(klass.name)
         self.__resolve_local(klass, klass.name)
 
+        if klass.superclass is not None:
+            if klass.superclass.name.lexeme == klass.name.lexeme:
+                self.error_reporter.report_resolver(
+                        klass.superclass.name.position,
+                        "Can't inherit from itself.")
+            self.resolve_expr(klass.superclass)
+
         self.__begin_scope()
         self.scopes[-1]["this"] = VarState(
                 klass.name, True, True, 0)
