@@ -10,7 +10,8 @@ The grammar is defined by:
                    | funDecl
                    | statement
 
-    classDecl   -> "class" IDENTIFIER ( "<" IDENTIFIER )?
+    classDecl   -> "class" IDENTIFIER
+                   ( "<" IDENTIFIER ( "," IDENTIFIER )* )?
                    "{" ( ( "class" )? function )* "}"
     varDecl     -> "var" IDENTIFIER ("=" expression)? ";"
     funDecl     -> "fun" function
@@ -175,11 +176,16 @@ class Parser:
         class_name = self.__consume(TokenType.IDENTIFIER,
                                     "Expect class name.")
 
-        superclass: Optional[Variable] = None
+        superclasses: list[Variable] = []
         if self.__match([TokenType.LESS]):
             self.__consume(TokenType.IDENTIFIER,
                            "Expect superclass name.")
-            superclass = Variable(self.__previous())
+            superclasses.append(Variable(self.__previous()))
+
+            while self.__match([TokenType.COMMA]):
+                self.__consume(TokenType.IDENTIFIER,
+                               "Expect superclass name.")
+                superclasses.append(Variable(self.__previous()))
 
         self.__consume(TokenType.LEFT_BRACE,
                        "Expect '{' before class body.")
@@ -192,7 +198,7 @@ class Parser:
             else:
                 methods.append(self.__function("method"))
         self.__consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
-        return Class(class_name, superclass, methods, static_methods)
+        return Class(class_name, superclasses, methods, static_methods)
 
     def __var_decl(self) -> Stmt:
         var_name = self.__consume(TokenType.IDENTIFIER,

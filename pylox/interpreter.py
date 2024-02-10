@@ -373,25 +373,27 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
         raise errors.LoxReturn(value)
 
     def visit_class_stmt(self, klass: Class):
-        superclass: Optional[LoxClass] = None
-        if klass.superclass is not None:
-            superclass = self.evaluate(klass.superclass)
+        superclasses: list[LoxClass] = []
+        for superclass_name in klass.superclasses:
+            superclass = self.evaluate(superclass_name)
             if not isinstance(superclass, LoxClass):
                 raise errors.LoxRuntimeError(
-                        klass.superclass.name,
-                        "'" + klass.superclass.name.lexeme + "' is not "
+                        superclass_name.name,
+                        "'" + superclass_name.name.lexeme + "' is not "
                         + "a class. Can only inherit from class.")
+            superclasses.append(superclass)
 
         if self.environment is not None:
             self.environment.define(klass.name)
         else:
             self.global_environment.define(klass.name)
 
-        if klass.superclass is not None:
+        if len(klass.superclasses) > 0:
             # create environment for super
             self.environment = Environment(self.environment)
             # define 'super' (name is not needed since Resolver handles it)
-            self.environment.define(None, superclass)
+            # TODO
+            self.environment.define(None, superclasses[0])
 
         methods: dict[str, LoxFunction] = {}
         for method in klass.methods:
@@ -411,13 +413,13 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                     self.environment)
             static_methods[static_method.name.lexeme] = sfunction
 
-        if klass.superclass is not None:
+        if len(klass.superclasses) > 0:
             if self.environment is None:
                 # it's created above...
                 raise RuntimeError("This cannot happen!")
             # leave environment for 'super'
             self.environment = self.environment.enclosing
 
-        k = LoxClass(klass.name.lexeme, superclass, methods, static_methods)
+        k = LoxClass(klass.name.lexeme, superclasses, methods, static_methods)
 
         self.__assign_variable(klass.name, klass, k)

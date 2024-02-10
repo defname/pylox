@@ -213,19 +213,20 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
         self.__define(klass.name)
         self.__resolve_local(klass, klass.name)
 
-        if klass.superclass is not None:
-            if klass.superclass.name.lexeme == klass.name.lexeme:
+        for superclass in klass.superclasses:
+            if superclass.name.lexeme == klass.name.lexeme:
                 self.error_reporter.report_resolver(
-                        klass.superclass.name.position,
+                        superclass.name.position,
                         "Can't inherit from itself.")
-            self.resolve_expr(klass.superclass)
+            self.resolve_expr(superclass)
 
-        if klass.superclass is not None:
+        if len(klass.superclasses) > 0:
             # begin scope for "super"
             self.current_class = ClassType.SUBCLASS
             self.__begin_scope()
+            # TODO: Not sure if klass.name is the correct joice
             self.scopes[-1]["super"] = VarState(
-                    klass.superclass.name, True, True, 0)
+                    klass.name, True, True, 0)
 
         self.__begin_scope()
         self.scopes[-1]["this"] = VarState(
@@ -244,7 +245,7 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
 
         self.__end_scope()
 
-        if klass.superclass is not None:
+        if len(klass.superclasses) > 0:
             # end scope for "super"
             self.__end_scope()
 

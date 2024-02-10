@@ -38,19 +38,19 @@ class LoxInstance:
 
 class LoxClass(callable.LoxCallable, LoxInstance):
     name: str
-    superclass: Optional[LoxClass]
+    superclasses: list[LoxClass]
     methods: dict[str, callable.LoxFunction]
     fields: dict[str, callable.LoxFunction]  # holds the static methods
     initializer: Optional[callable.LoxFunction]
 
     def __init__(self,
                  name: str,
-                 superclass: Optional[LoxClass],
+                 superclasses: list[LoxClass],
                  methods: dict[str, callable.LoxFunction],
                  static_methods: dict[str, callable.LoxFunction]):
         LoxInstance.__init__(self, self)
         self.name = name
-        self.superclass = superclass
+        self.superclasses = superclasses
         self.methods = methods
         self.fields = static_methods
 
@@ -80,11 +80,10 @@ class LoxClass(callable.LoxCallable, LoxInstance):
             return self.fields[name.lexeme]
 
         static_method: Optional[callable.LoxFunction] = None
-        if self.superclass is not None:
-            static_method = self.superclass.get(name, True)
-
-        if static_method is not None:
-            return static_method
+        for superclass in self.superclasses:
+            static_method = superclass.get(name, True)
+            if static_method is not None:
+                return static_method
 
         if dont_raise_error:
             return None
@@ -98,8 +97,10 @@ class LoxClass(callable.LoxCallable, LoxInstance):
         if name.lexeme in self.methods:
             return self.methods[name.lexeme]
 
-        if self.superclass is not None:
-            return self.superclass.find_method(name)
+        for superclass in self.superclasses:
+            method = superclass.find_method(name)
+            if method is not None:
+                return method
 
         return None
 
