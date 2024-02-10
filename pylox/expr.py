@@ -197,6 +197,7 @@ class This(Expr):
 class Super(Expr):
     keyword: Token
     method: Token
+    superclass: Optional[Token]
 
     def accept(self, visitor: Expr.Visitor):
         return visitor.visit_super_expr(self)

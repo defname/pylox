@@ -277,4 +277,3 @@ class Resolver(stmt.Stmt.Visitor, expr.Expr.Visitor):
                     supi.keyword.position,
                     "Can't use 'super' outside of subclasses.")
         self.__resolve_local(supi, supi.keyword)
-

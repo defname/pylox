@@ -53,12 +53,16 @@ class LoxClass(callable.LoxCallable, LoxInstance):
         self.superclasses = superclasses
         self.methods = methods
         self.fields = static_methods
-
+        """
         self.initializer = self.find_method(
                 lexer.Token(lexer.TokenType.IDENTIFIER,
                             "init",
                             lexer.SourcePosition())
                 )
+        """
+        self.initializer = None
+        if "init" in self.methods:
+            self.initializer = self.methods["init"]
 
     def call(self,
              interpreter: interpreter.Interpreter,

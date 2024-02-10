@@ -57,7 +57,7 @@ The grammar is defined by:
                    | "true" | "false" | "nil"
                    | "(" expression ")"
                    | "this"
-                   | "super" "." IDENTIFIER
+                   | "super" ( "(" IDENTIFIER ")" )? "." IDENTIFIER
                    | IDENTIFIER
 """
 from __future__ import annotations
@@ -556,15 +556,26 @@ class Parser:
 
         if self.__match([TokenType.THIS]):
             return This(self.__previous())
-        
+
         if self.__match([TokenType.SUPER]):
             keyword: Token = self.__previous()
+
+            superclass: Optional[Token] = None
+            if self.__match([TokenType.LEFT_PAREN]):
+                self.__consume(
+                        TokenType.IDENTIFIER,
+                        "Expect superclass name.")
+                superclass = self.__previous()
+                self.__consume(
+                        TokenType.RIGHT_PAREN,
+                        "Expect ')' after superclass name.")
+
             self.__consume(TokenType.DOT,
                            "Expect '.' after 'super'.")
             method: Token = self.__consume(
                     TokenType.IDENTIFIER,
                     "Expect method name.")
-            return Super(keyword, method)
+            return Super(keyword, method, superclass)
 
         # check for a faulty positioned binary operator
         if self.__match(BINARY_OPERATOR_TYPES):

@@ -305,15 +305,26 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             # Cannot happen, since it is ensured, that 'super' is only used
             # in subclasses
             raise RuntimeError("Impossible situation")
-        superclass: LoxClass = self.environment.get_at(
-                distance, index, "super")
+        mapping: dict[str, int] = self.environment.get_at(distance, 0, "super")
         this: LoxClass = self.environment.get_at(distance-1, 0, "this")
-        method: Optional[LoxFunction] = superclass.find_method(expr.method)
+        superclass_index: int = 0
+        if expr.superclass is not None:
+            i = mapping.get(expr.superclass.lexeme, None)
+            if i is None:
+                raise errors.LoxRuntimeError(
+                        expr.superclass,
+                        "'" + expr.superclass.lexeme + "' is not a superclass "
+                        + "of '" + this.klass.name + "'.")
+            superclass_index = i
+        superclasses: list[LoxClass] = this.klass.superclasses
+        method: Optional[LoxFunction] = \
+            superclasses[superclass_index].find_method(expr.method)
 
         if method is None:
             raise errors.LoxRuntimeError(
                     expr.method,
-                    "Class '" + superclass.name + "' has no method '"
+                    "Class '" + superclasses[superclass_index].name
+                    + "' has no method '"
                     + expr.method.lexeme + "'.")
 
         return method.bind(this)
@@ -374,7 +385,8 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
 
     def visit_class_stmt(self, klass: Class):
         superclasses: list[LoxClass] = []
-        for superclass_name in klass.superclasses:
+        superclasses_mapping: dict[str, int] = {}
+        for pos, superclass_name in enumerate(klass.superclasses):
             superclass = self.evaluate(superclass_name)
             if not isinstance(superclass, LoxClass):
                 raise errors.LoxRuntimeError(
@@ -382,6 +394,7 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
                         "'" + superclass_name.name.lexeme + "' is not "
                         + "a class. Can only inherit from class.")
             superclasses.append(superclass)
+            superclasses_mapping[superclass_name.name.lexeme] = pos
 
         if self.environment is not None:
             self.environment.define(klass.name)
@@ -392,8 +405,9 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             # create environment for super
             self.environment = Environment(self.environment)
             # define 'super' (name is not needed since Resolver handles it)
-            # TODO
-            self.environment.define(None, superclasses[0])
+            # the actual superclass is found by vist_super_expe by
+            # taking the correct entry fom this's klass superclasses list
+            self.environment.define(None, superclasses_mapping)
 
         methods: dict[str, LoxFunction] = {}
         for method in klass.methods:
