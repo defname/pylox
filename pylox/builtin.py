@@ -59,6 +59,7 @@ class LoxType(callable.LoxCallable):
     def __str__(self):
         return "<native-fun: type>"
 
+
 class LoxIsinstance(callable.LoxCallable):
     def call(self, _: Interpreter, arguments: list[Any]):
         inst = arguments[0]
@@ -134,6 +135,49 @@ class LoxTonumber(callable.LoxCallable):
 
     def __str__(self):
         return "<native-fun: tonumber>"
+
+
+class LoxStrcmp(callable.LoxCallable):
+    def call(self, _: Interpreter, arguments: list[Any]):
+        if not isinstance(arguments[0], str) \
+                or not isinstance(arguments[1], str):
+            return None
+        return arguments[0] < arguments[1]
+
+    def arity(self):
+        return 2
+
+    def __str__(self):
+        return "<native-fun: strcmp>"
+
+
+class LoxSubstr(callable.LoxCallable):
+    def call(self, _: Interpreter, arguments: list[Any]):
+        if not isinstance(arguments[0], str) \
+                or not isinstance(arguments[1], float) \
+                or not isinstance(arguments[2], float):
+            return None
+
+        return arguments[0][int(arguments[1]):int(arguments[2])]
+
+    def arity(self):
+        return 3
+
+    def __str__(self):
+        return "<native-fun: substr>"
+
+
+class LoxStrlen(callable.LoxCallable):
+    def call(self, _: Interpreter, arguments: list[Any]):
+        if not isinstance(arguments[0], str):
+            return None
+        return float(len(arguments[0]))
+
+    def arity(self):
+        return 1
+
+    def __str__(self):
+        return "<native-fun: strlen>"
 
 
 class LoxRound(callable.LoxCallable):
@@ -216,6 +260,9 @@ FUNCTIONS = {
         "hasprop": LoxHasprop(),
         "tostring": LoxTostring(),
         "tonumber": LoxTonumber(),
+        "strcmp": LoxStrcmp(),
+        "substr": LoxSubstr(),
+        "strlen": LoxStrlen(),
         "round": LoxRound(),
         "floor": LoxFloor(),
         "include": LoxInclude()
