@@ -38,18 +38,20 @@ class LoxInstance:
 
 class LoxClass(callable.LoxCallable, LoxInstance):
     name: str
+    token: lexer.Token
     superclasses: list[LoxClass]
     methods: dict[str, callable.LoxFunction]
     fields: dict[str, callable.LoxFunction]  # holds the static methods
     initializer: Optional[callable.LoxFunction]
 
     def __init__(self,
-                 name: str,
+                 name: lexer.Token,
                  superclasses: list[LoxClass],
                  methods: dict[str, callable.LoxFunction],
                  static_methods: dict[str, callable.LoxFunction]):
         LoxInstance.__init__(self, self)
-        self.name = name
+        self.name = name.lexeme
+        self.token = name
         self.superclasses = superclasses
         self.methods = methods
         self.fields = static_methods
@@ -71,6 +73,21 @@ class LoxClass(callable.LoxCallable, LoxInstance):
         if self.initializer is not None:
             self.initializer.bind(instance).call(interpreter,
                                                  arguments)
+        else:  # try to call all superclass initializers
+            for superclass in self.superclasses:
+                if superclass.initializer is None:
+                    continue
+                if superclass.initializer.arity() != len(arguments):
+                    raise errors.LoxRuntimeError(
+                            self.token,
+                            "Cannot initialize because the number of "
+                            + "arguments passed to the initializer "
+                            + "doesn't fit the number of parameters of "
+                            + "the initializer of '" + superclass.name + "'. "
+                            + "Consider adding an initializer method.")
+                superclass.initializer \
+                    .bind(instance) \
+                    .call(interpreter, arguments)
         return instance
 
     def arity(self):

@@ -434,6 +434,6 @@ class Interpreter(Expr.Visitor, Stmt.Visitor):
             # leave environment for 'super'
             self.environment = self.environment.enclosing
 
-        k = LoxClass(klass.name.lexeme, superclasses, methods, static_methods)
+        k = LoxClass(klass.name, superclasses, methods, static_methods)
 
         self.__assign_variable(klass.name, klass, k)
