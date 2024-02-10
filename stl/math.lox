@@ -1,0 +1,33 @@
+class Math {
+    class abs(a) {
+        if (a < 0) return -a;
+        return a;
+    }
+
+    class pow(m, n) {
+        if (n < 1) return 1;
+        var r = m;
+        for (var i=1; i<floor(n); i = i+1) {
+            r = r * m;
+        }
+        return r;
+    }
+
+    class sqrt(a) {
+        var x = a/2;
+        for (var i=0; i<1000; i=i+1) {
+            var y = a/x;
+            x = (x+y)/2;
+        }
+        return x;
+    }
+
+    class floor(a) {
+        return floor(a);
+    }
+
+    class ceil(a) {
+        return floor(a+1);
+    }
+}
+

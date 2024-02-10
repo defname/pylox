@@ -1,0 +1,76 @@
+// Implement array like structure
+
+class LinkedListItem {
+    init(value, predecessor, successor) {
+        this.value = value;
+        this.predecessor = predecessor;
+        this.successor = successor;
+    }
+}
+
+class LinkedList {
+    init() {
+        this.start = nil;
+        this.end = nil;
+        this.length = 0;
+    }
+
+    push(val) {
+        this.length = this.length + 1;
+        
+        if (this.start == nil or this.end == nil) {
+            this.start = this.end = LinkedListItem(val, this.start, this.end);
+            return;
+        }
+        var newItem = LinkedListItem(val, this.end, nil);
+        this.end.successor = newItem;
+        this.end = newItem;
+    }
+
+    last() {
+        if (this.length == 0) return nil;
+        return this._get(this.length-1).value;
+    }
+
+    pop() {
+        if (this.length == 0) return nil;
+        var lastPos = this.length-1;
+        var item = this._get(lastPos);
+        this.remove(lastPos);
+        return item.value;
+    }
+
+    _get(pos) {
+        if (pos >= this.length) return nil;
+
+        var current = this.start;
+        for (var i=0; i<pos; i=i+1) {
+            current = current.successor;
+        }
+
+        return current;
+    }
+
+    get(pos) {
+        var item = this._get(pos);
+        if (item == nil) return nil;
+        return item.value;
+    }
+
+    remove(pos) {
+        var item = this._get(pos);
+        if (item == nil) return;
+        this.length = this.length - 1;
+        if (item.predecessor == nil) { // first item in list
+            this.start = item.successor;
+            return;
+        }
+        item.predecessor.successor = item.successor;
+    }
+
+    clear() {
+        self.start = self.end = nil;
+        self.length = 0;
+    }
+}
+
